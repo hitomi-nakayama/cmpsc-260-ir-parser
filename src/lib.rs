@@ -3,16 +3,8 @@ use std::io::BufRead;
 mod instruction;
 use instruction::{Instruction, Operation, Relation, Variable, TypeName};
 
-pub type ParseResult<T> = Result<T, ParseError>;
-
-#[derive(Clone, Debug)]
-pub enum ParseError {
-    Generic(String),
-    Expected(usize, String),  // expected but did not find
-    ExpectedFound(usize, String, String),  // (Expected, Found)
-    VariableParseError(usize, String),
-    Unexpected(usize, String)  // found but did not expect
-}
+mod parse_result;
+use parse_result::{ParseResult, ParseError};
 
 pub struct IR {
 }
@@ -57,18 +49,12 @@ fn parse_function_header(source_reader: &mut SourceReader) -> ParseResult<(Strin
     let mut tokens = TokenCursor::from(&line);
 
     tokens.expect("function")?;
-
     let function_name = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a function name here.".to_string()))?;
-
     tokens.expect("(")?;
-
     let params = parse_function_params(&mut tokens)?;
-
     tokens.expect("->")?;
     let return_type = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a return type here.".to_string()))?;
-
     tokens.expect("{")?;
-
     if !(tokens.empty()) {
         return Err(ParseError::Unexpected(line_number, tokens.take().unwrap()));
     }
