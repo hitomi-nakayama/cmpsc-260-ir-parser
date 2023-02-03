@@ -315,14 +315,6 @@ d e f
         assert!(line_2_indent);
     }
 
-    // #[test]
-    // fn parse_variable_0() {
-    //     let variable = "a:int";
-    //     let expected = Variable{name: "a".to_string(), type_name: "int".to_string()};
-    //     let actual = parse_variable(variable).unwrap();
-    //     assert_eq!(expected, actual);
-    // }
-
     #[test]
     fn parse_function_params_0() {
         let params = vec!["value:int", ",", "left:TreeNode*", ",", "right:TreeNode*", ")"];
