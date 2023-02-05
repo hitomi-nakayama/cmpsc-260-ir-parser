@@ -46,7 +46,7 @@ fn parse_function_header(source_reader: &mut SourceReader) -> ParseResult<(Strin
     }
     let line = line.unwrap();
     let line_number = line.line_number;
-    let mut tokens = TokenCursor::from(&line);
+    let mut tokens = TokenCursor::from(line);
 
     tokens.expect("function")?;
     let function_name = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a function name here.".to_string()))?;
@@ -110,6 +110,25 @@ fn parse_basic_blocks(source_reader: &mut SourceReader) -> ParseResult<Vec<Basic
     Ok(Vec::new())
 }
 
+fn parse_instruction(tokens: &mut TokenCursor) -> ParseResult<Instruction> {
+    use Instruction::*;
+
+    let first_token = tokens.peek().ok_or(ParseError::Generic("Expected an instruction here.".into()))?.as_str();
+    match first_token {
+        "$jump" => {
+            tokens.take();
+            let label = take_label(tokens)?;
+            Ok(Jump(label))
+        },
+        _ => Err(ParseError::Generic(format!("Unknown instruction: {}", tokens.peek().unwrap())))
+    }
+}
+
+fn take_label(tokens: &mut TokenCursor) -> ParseResult<String> {
+    let label = tokens.take().ok_or(ParseError::Generic("Expected a label here.".to_string()))?;
+    Ok(label)
+}
+
 fn parse_variable(tokens: &mut TokenCursor) -> ParseResult<Variable> {
     let line_number = tokens.line_number();
 
@@ -166,14 +185,14 @@ impl<'a> SourceReader<'a> {
     }
 }
 
-struct TokenCursor<'a> {
+struct TokenCursor {
     line_number_: usize,
     index: usize,
-    tokens: &'a [String]
+    tokens: Vec<String>
 }
 
-impl<'a> TokenCursor<'a> {
-    fn new(line_number: usize, tokens: &'a [String]) -> Self {
+impl TokenCursor {
+    fn new(line_number: usize, tokens: Vec<String>) -> Self {
         TokenCursor {
             line_number_: line_number,
             index: 0,
@@ -221,10 +240,10 @@ impl<'a> TokenCursor<'a> {
     }
 }
 
-impl<'a> From<&'a LineResult> for TokenCursor<'a> {
-    fn from(line: &'a LineResult) -> Self {
+impl From<LineResult> for TokenCursor {
+    fn from(line: LineResult) -> Self {
         let line_number = line.line_number;
-        let tokens = &line.tokens;
+        let tokens = line.tokens;
         TokenCursor::new(line_number, tokens)
     }
 }
@@ -260,6 +279,8 @@ fn tokenize_line(input: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::rc::Rc;
+
     use super::*;
 
     #[test]
@@ -319,7 +340,7 @@ d e f
     fn parse_function_params_0() {
         let params = vec!["value:int", ",", "left:TreeNode*", ",", "right:TreeNode*", ")"];
         let params: Vec<String> = params.iter().map(|s| s.to_string()).collect();
-        let mut params = TokenCursor::new(0, &params[..]);
+        let mut params = TokenCursor::new(0, params);
 
         let expected = vec![
             Variable::try_from("value:int").unwrap(),
@@ -334,7 +355,7 @@ d e f
     #[test]
     fn parse_function_params_empty() {
         let params = vec![")".to_string()];
-        let mut params = TokenCursor::new(0, &params[..]);
+        let mut params = TokenCursor::new(0, params);
 
         let expected: Vec<Variable> = vec![];
 
@@ -357,5 +378,38 @@ d e f
         assert_eq!(expected_name, actual_name);
         assert_eq!(expected_params, actual_params);
         assert_eq!(expected_return_type, actual_return_type);
+    }
+
+    #[test]
+    fn parse_instruction_jump() {
+        let instruction = "$jump if.end";
+        let expected = Instruction::Jump("if.end".into());
+
+        let mut tokens = str_to_tokens(instruction);
+
+        let actual = parse_instruction(&mut tokens).unwrap();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_instruction_store() {
+        let instruction = "$store x:int* 0";
+        let expected = Instruction::Jump("if.end".into());
+
+        let mut tokens = str_to_tokens(instruction);
+
+        let actual = parse_instruction(&mut tokens).unwrap();
+
+        assert_eq!(expected, actual);
+    }
+
+    fn str_to_tokens(input: &str) -> TokenCursor {
+        let mut reader = SourceReader::new(input.as_bytes());
+
+        let line = reader.read_line().unwrap();
+        let tokens = TokenCursor::from(line);
+
+        return tokens;
     }
 }
