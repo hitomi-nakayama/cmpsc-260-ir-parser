@@ -3,7 +3,7 @@ pub type BasicBlockName = String;
 
 use crate::parse_result::{ParseResult, ParseError};
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Instruction {
     Arith(Operation, Variable, Value, Value),
     Cmp(Relation, Variable, Value, Value),
@@ -22,7 +22,7 @@ pub enum Instruction {
     Branch(Variable, BasicBlockName, BasicBlockName),
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Operation {
     Add
 }
@@ -39,7 +39,7 @@ impl TryFrom<&str> for Operation {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Relation {
     Lte,  // less than or equal
     Neq
@@ -58,7 +58,7 @@ impl TryFrom<&str> for Relation {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Value {
     Constant(i32),
     Variable(Variable),
@@ -94,7 +94,7 @@ impl TryFrom<&str> for Value {
 
 type VariableName = String;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Variable {
     name: VariableName,
     type_name: TypeName
@@ -113,7 +113,7 @@ impl TryFrom<&str> for Variable {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct TypeName {
     indirection_level: u8,  // a function pointer has indirection level 1
     base_type: BaseType
@@ -173,7 +173,7 @@ impl TryFrom<&str> for TypeName {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum BaseType {
     VariableType(String),
     FunctionPointer(Box<TypeName>, Vec<TypeName>)
