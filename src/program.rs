@@ -1,7 +1,7 @@
 use crate::instruction::{BasicBlockName, FunctionName, Instruction, TypeName, Variable};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct IR {
+pub struct Program {
     pub functions: Vec<Function>
 }
 

@@ -3,7 +3,7 @@ use crate::instruction::TypeName;
 use crate::instruction::{Instruction, Operation, Relation, Value, Variable};
 
 use crate::parse_result::{ParseError, ParseResult};
-use crate::program::{BasicBlock, Function, IR};
+use crate::program::{BasicBlock, Function, Program};
 use crate::text::{SourceReader, TokenCursor};
 
 
