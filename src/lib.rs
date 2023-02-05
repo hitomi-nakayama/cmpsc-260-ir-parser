@@ -16,6 +16,7 @@ pub struct Function {
     basic_blocks: Vec<BasicBlock>
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BasicBlock {
     name: String,
     instructions: Vec<Instruction>
@@ -62,30 +63,33 @@ fn parse_function_header(source_reader: &mut SourceReader) -> ParseResult<(Strin
 }
 
 fn parse_basic_blocks(source_reader: &mut SourceReader) -> ParseResult<Vec<BasicBlock>> {
-    // let mut basic_blocks: Vec<BasicBlock> = Vec::new();
+    let mut basic_blocks: Vec<BasicBlock> = Vec::new();
 
-    // loop {
-    //     let line = source_reader.read_line();
-    //     let line_number = line.line_number;
-    //     let tokens = line.tokens;
+    loop {
+        let line = source_reader.read_line().ok_or(ParseError::Generic("No line to consume".to_string()))?;
+        let is_indented = line.is_indented;
+        let line_number = line.line_number;
+        let mut tokens = TokenCursor::from(line);
 
-    //     if line.is_none() {
-    //         return return Err(ParseError::Expected(line_number, "}".to_string()));
-    //     }
-    //     if tokens[0] == "}" {
-    //         return Ok(basic_blocks);
-    //     }
-
-    //     let line = line.unwrap();
-    //     let line_number = line.line_number;
-    //     let tokens = line.tokens;
-
-
-    //     if tokens[0] == "block" {
-    //         let basic_block = parse_basic_block(source_reader);
-    //     }
-    // }
-    Ok(Vec::new())
+        if is_indented {
+            let instruction = parse_instruction(&mut tokens)?;
+            if let Some(block) = basic_blocks.last_mut() {
+                block.instructions.push(instruction);
+            } else {
+                return Err(ParseError::Generic("Expected a basic block label.".into()));
+            }
+        } else {
+            let label = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a basic block label here.".to_string()))?;
+            if label == "}" {
+                return Ok(basic_blocks);
+            }
+            let label = label.strip_suffix(":").ok_or(ParseError::Expected(line_number, "Expected a basic block label here.".to_string()))?;
+            basic_blocks.push(BasicBlock{
+                name: label.to_owned(),
+                instructions: Vec::new()
+            });
+        }
+    }
 }
 
 fn parse_instruction(tokens: &mut TokenCursor) -> ParseResult<Instruction> {
@@ -364,9 +368,9 @@ fn tokenize_line(input: &str) -> Vec<String> {
             if let Some(start) = word_start {
                 tokens.push(input[start..i].to_string());
                 word_start = None;
-                if !(c.is_whitespace()) {
-                    tokens.push(c.to_string());
-                }
+            }
+            if !(c.is_whitespace()) {
+                tokens.push(c.to_string());
             }
         } else {
             if word_start.is_none() {
@@ -392,6 +396,12 @@ mod tests {
     fn tokenize_line_statement() {
         let tokens = tokenize_line("div:int = $arith div i2:int i3:int");
         assert_eq!(tokens, vec!["div:int", "=", "$arith", "div", "i2:int", "i3:int"]);
+    }
+
+    #[test]
+    fn tokenize_line_function_call() {
+        let tokens = tokenize_line("call3:int = $call input()");
+        assert_eq!(tokens, vec!["call3:int", "=", "$call", "input", "(", ")"]);
     }
 
     #[test]
@@ -707,6 +717,81 @@ d e f
         let actual = parse_instruction(&mut tokens).unwrap();
         assert_eq!(expected, actual);
     }
+
+    #[test]
+    fn parse_basic_block_0() {
+        let basic_block = "
+entry:
+    call:int = $call input()
+    x:int = $copy call:int
+    $ret 0
+}";
+        let expected = BasicBlock{
+            name: "entry".to_owned(),
+            instructions: vec![
+                Instruction::Call(
+                    "call:int".try_into().unwrap(),
+                    "input".to_owned(),
+                    vec![]
+                ),
+                Instruction::Copy(
+                    "x:int".try_into().unwrap(),
+                    "call:int".try_into().unwrap()
+                ),
+                Instruction::Ret(
+                    Value::Constant(0)
+                )
+            ]
+        };
+    }
+
+    #[test]
+    fn parse_basic_block_1() {
+        let basic_blocks = "entry:
+    tobool:int = $cmp neq call1:int 0
+    $branch tobool:int if.then if.else
+
+if.else:
+    call3:int = $call input()
+    $jump if.end
+}";
+        let expected = vec![
+            BasicBlock{
+                name: "entry".to_owned(),
+                instructions: vec![
+                    Instruction::Cmp(
+                        "neq".try_into().unwrap(),
+                        "tobool:int".try_into().unwrap(),
+                        "call1:int".try_into().unwrap(),
+                        Value::Constant(0)
+                    ),
+                    Instruction::Branch(
+                        "tobool:int".try_into().unwrap(),
+                        "if.then".to_owned(),
+                        "if.else".to_owned()
+                    )
+                ]
+            },
+            BasicBlock{
+                name: "if.else".to_owned(),
+                instructions: vec![
+                    Instruction::Call(
+                        "call3:int".try_into().unwrap(),
+                        "input".to_owned(),
+                        vec![]
+                    ),
+                    Instruction::Jump(
+                        "if.end".to_owned()
+                    )
+                ]
+            }
+        ];
+
+        let mut reader = SourceReader::new(basic_blocks.as_bytes());
+        let actual = parse_basic_blocks(&mut reader).unwrap();
+        assert_eq!(expected, actual);
+    }
+
 
     fn str_to_tokens(input: &str) -> TokenCursor {
         let mut reader = SourceReader::new(input.as_bytes());

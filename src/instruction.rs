@@ -41,7 +41,8 @@ impl TryFrom<&str> for Operation {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Relation {
-    Lte  // less than or equal
+    Lte,  // less than or equal
+    Neq
 }
 
 impl TryFrom<&str> for Relation {
@@ -51,6 +52,7 @@ impl TryFrom<&str> for Relation {
         use Relation::*;
         match value {
             "lte" => Ok(Lte),
+            "neq" => Ok(Neq),
             _ => Err(ParseError::Generic(format!("Invalid relation {}", value)))
         }
     }
