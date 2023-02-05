@@ -24,7 +24,8 @@ pub enum Instruction {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Operation {
-    Add
+    Add,
+    Mul
 }
 
 impl TryFrom<&str> for Operation {
@@ -34,6 +35,7 @@ impl TryFrom<&str> for Operation {
         use Operation::*;
         match value {
             "add" => Ok(Add),
+            "mul" => Ok(Mul),
             _ => Err(ParseError::Generic(format!("Unknown arithmetic operation: {value}")))
         }
     }
