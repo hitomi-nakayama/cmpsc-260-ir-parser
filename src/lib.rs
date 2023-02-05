@@ -1,9 +1,9 @@
 use std::io::BufRead;
 
 mod instruction;
-use instruction::{Value, Instruction, Operation, Relation, Variable, TypeName};
-
 mod parse_result;
+
+use instruction::{Value, Instruction, Operation, Relation, Variable, TypeName};
 use parse_result::{ParseResult, ParseError};
 
 pub struct IR {
@@ -72,7 +72,7 @@ fn parse_function_params(tokens: &mut TokenCursor) -> ParseResult<Vec<Variable>>
     }
 
     loop {
-        let variable = parse_variable(tokens)?;
+        let variable = take_variable(tokens)?;
         params.push(variable);
 
         if tokens.peek().ok_or(ParseError::Expected(line_number, ")".to_string()))? == ")" {
@@ -115,10 +115,28 @@ fn parse_instruction(tokens: &mut TokenCursor) -> ParseResult<Instruction> {
 
     let first_token = tokens.peek().ok_or(ParseError::Generic("Expected an instruction here.".into()))?.as_str();
     match first_token {
+        "$branch" => {
+            tokens.take();
+            let cond = take_variable(tokens)?;
+            let true_branch = take_label(tokens)?;
+            let false_branch = take_label(tokens)?;
+            Ok(Branch(cond, true_branch, false_branch))
+        },
         "$jump" => {
             tokens.take();
             let label = take_label(tokens)?;
             Ok(Jump(label))
+        },
+        "$ret" => {
+            tokens.take();
+            let value = take_value(tokens)?;
+            Ok(Ret(value))
+        },
+        "$store" => {
+            tokens.take();
+            let dest = take_variable(tokens)?;
+            let src = take_value(tokens)?;
+            Ok(Store(dest, src))
         },
         _ => Err(ParseError::Generic(format!("Unknown instruction: {}", tokens.peek().unwrap())))
     }
@@ -129,15 +147,19 @@ fn take_label(tokens: &mut TokenCursor) -> ParseResult<String> {
     Ok(label)
 }
 
-fn parse_variable(tokens: &mut TokenCursor) -> ParseResult<Variable> {
+fn take_value(tokens: &mut TokenCursor) -> ParseResult<Value> {
+    let line_number = tokens.line_number();
+
+    let token = tokens.take().ok_or(ParseError::Generic("Expected a value here.".to_string()))?;
+
+    Value::try_from(token.as_str())
+}
+
+fn take_variable(tokens: &mut TokenCursor) -> ParseResult<Variable> {
     let line_number = tokens.line_number();
 
     let token = tokens.take().ok_or(ParseError::Generic("Expected a parameter here.".to_string()))?;
-
-    match Variable::try_from(token.as_str()) {
-        Ok(variable) => Ok(variable),
-        Err(error) => Err(ParseError::VariableParseError(line_number, token.to_string()))
-    }
+    Variable::try_from(token.as_str())
 }
 
 
@@ -411,6 +433,38 @@ d e f
             "call2:int".try_into().unwrap(),
             "i1:int[int]*".try_into().unwrap(),
             vec![Value::Variable("call1:int".try_into().unwrap())]
+        );
+
+        let mut tokens = str_to_tokens(instruction);
+
+        let actual = parse_instruction(&mut tokens).unwrap();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_instruction_ret() {
+        let instruction = "$ret i8:int";
+        let expected = Instruction::Ret(
+            "i8:int".try_into().unwrap(),
+        );
+
+        let mut tokens = str_to_tokens(instruction);
+
+        let actual = parse_instruction(&mut tokens).unwrap();
+
+        assert_eq!(expected, actual);
+    }
+
+
+
+    #[test]
+    fn parse_instruction_branch() {
+        let instruction = "$branch cmp1:int if.then if.end";
+        let expected = Instruction::Branch(
+            "cmp1:int".try_into().unwrap(),
+            "if.then".to_owned(),
+            "if.end".to_owned()
         );
 
         let mut tokens = str_to_tokens(instruction);

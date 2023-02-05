@@ -1,9 +1,7 @@
 type FunctionName = String;
 type BasicBlockName = String;
 
-#[path = "parse_result.rs"]
-mod parse_result;
-use parse_result::{ParseResult, ParseError};
+use crate::parse_result::{ParseResult, ParseError};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Instruction {
@@ -37,6 +35,18 @@ pub enum Relation {
 pub enum Value {
     Constant(i32),
     Variable(Variable),
+}
+
+impl TryFrom<&str> for Value {
+    type Error = ParseError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        if let Ok(constant) = value.parse() {
+            Ok(Value::Constant(constant))
+        } else {
+            Ok(Value::Variable(value.try_into()?))
+        }
+    }
 }
 
 type VariableName = String;
