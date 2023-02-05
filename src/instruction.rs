@@ -9,7 +9,7 @@ pub enum Instruction {
     Cmp(Relation, Variable, Value, Value),
     Phi(Variable, Vec<Value>),
     Copy(Variable, Value),
-    Load(Variable, Value),
+    Load(Variable, Variable),
     Store(Variable, Value),
     Select(Variable, Variable, Value, Value),
     Call(Variable, FunctionName, Vec<Value>),

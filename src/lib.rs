@@ -121,11 +121,20 @@ fn parse_instruction(tokens: &mut TokenCursor) -> ParseResult<Instruction> {
 }
 
 fn parse_assign_instruction(tokens: &mut TokenCursor) -> ParseResult<Instruction> {
+    use Instruction::*;
+
     let lhs = take_variable(tokens)?;
     tokens.expect("=")?;
 
     let opcode = tokens.take().ok_or(ParseError::Generic("Expected an instruction here.".into()))?;
     match opcode.as_str() {
+        "$addrof" => {
+            let rhs = take_variable(tokens)?;
+            Ok(AddrOf(lhs, rhs))
+        },
+        "$alloc" => {
+            Ok(Instruction::Alloc(lhs))
+        },
         "$arith" => {
             let op = tokens.take().ok_or(ParseError::Generic("Expected an arithmetic operation here.".into()))?;
             let op = op.as_str().try_into()?;
@@ -142,14 +151,39 @@ fn parse_assign_instruction(tokens: &mut TokenCursor) -> ParseResult<Instruction
             let rhs2 = take_value(tokens)?;
             Ok(Instruction::Cmp(relation, lhs, rhs1, rhs2))
         },
+        "$call" => {
+            let label = take_label(tokens)?;
+            let args = parse_value_list(tokens)?;
+            Ok(Instruction::Call(lhs, label, args))
+        },
+        "$copy" => {
+            let rhs = take_value(tokens)?;
+            Ok(Instruction::Copy(lhs, rhs))
+        },
+        "$gep" => {
+            let rhs1 = take_variable(tokens)?;
+            let rhs2 = take_value(tokens)?;
+            let rhs3 = tokens.take().ok_or(ParseError::Generic("Expected a value here.".into()))?;
+            Ok(Gep(lhs, rhs1, rhs2, rhs3))
+        },
         "$icall" => {
             let func_ptr = take_variable(tokens)?;
             let args = parse_value_list(tokens)?;
             Ok(Instruction::ICall(lhs, func_ptr, args))
         },
+        "$load" => {
+            let rhs = take_variable(tokens)?;
+            Ok(Instruction::Load(lhs, rhs))
+        },
         "$phi" => {
             let args = parse_value_list(tokens)?;
             Ok(Instruction::Phi(lhs, args))
+        }
+        "$select" => {
+            let cond = take_variable(tokens)?;
+            let true_value = take_value(tokens)?;
+            let false_value = take_value(tokens)?;
+            Ok(Instruction::Select(lhs, cond, true_value, false_value))
         }
         x => Err(ParseError::Generic(format!("Unknown instruction: {x}")))
     }
@@ -476,22 +510,6 @@ d e f
     }
 
     #[test]
-    fn parse_instruction_icall() {
-        let instruction = "call2:int = $icall i1:int[int]*(call1:int)";
-        let expected = Instruction::ICall(
-            "call2:int".try_into().unwrap(),
-            "i1:int[int]*".try_into().unwrap(),
-            vec![Value::Variable("call1:int".try_into().unwrap())]
-        );
-
-        let mut tokens = str_to_tokens(instruction);
-
-        let actual = parse_instruction(&mut tokens).unwrap();
-
-        assert_eq!(expected, actual);
-    }
-
-    #[test]
     fn parse_instruction_ret() {
         let instruction = "$ret i8:int";
         let expected = Instruction::Ret(
@@ -566,6 +584,123 @@ d e f
                 "add:int".try_into().unwrap(),
                 "sub:int".try_into().unwrap()
             ]
+        );
+
+        let mut tokens = str_to_tokens(instruction);
+        let actual = parse_instruction(&mut tokens).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_instruction_copy() {
+        let instruction = "primality:int = $copy 0";
+        let expected = Instruction::Copy(
+            "primality:int".try_into().unwrap(),
+            "0".try_into().unwrap()
+        );
+
+        let mut tokens = str_to_tokens(instruction);
+        let actual = parse_instruction(&mut tokens).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_instruction_load() {
+        let instruction = "i:foo* = $load next3:foo**";
+        let expected = Instruction::Load(
+            "i:foo*".try_into().unwrap(),
+            "next3:foo**".try_into().unwrap()
+        );
+
+        let mut tokens = str_to_tokens(instruction);
+        let actual = parse_instruction(&mut tokens).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_instruction_select() {
+        let instruction = "cond:int[int]* = $select tobool:int @foo:int[int]* @bar:int[int]*";
+        let expected = Instruction::Select(
+            "cond:int[int]*".try_into().unwrap(),
+            "tobool:int".try_into().unwrap(),
+            "@foo:int[int]*".try_into().unwrap(),
+            "@bar:int[int]*".try_into().unwrap()
+        );
+
+        let mut tokens = str_to_tokens(instruction);
+        let actual = parse_instruction(&mut tokens).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_instruction_call() {
+        let instruction = "call:TreeNode* = $call construct(1, @nullptr:TreeNode*, @nullptr:TreeNode*)";
+        let expected = Instruction::Call(
+            "call:TreeNode*".try_into().unwrap(),
+            "construct".to_owned(),
+            vec![
+                Value::Constant(1),
+                Value::Variable("@nullptr:TreeNode*".try_into().unwrap()),
+                Value::Variable("@nullptr:TreeNode*".try_into().unwrap())
+            ]
+        );
+
+        let mut tokens = str_to_tokens(instruction);
+
+        let actual = parse_instruction(&mut tokens).unwrap();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_instruction_icall() {
+        let instruction = "call2:int = $icall i1:int[int]*(call1:int)";
+        let expected = Instruction::ICall(
+            "call2:int".try_into().unwrap(),
+            "i1:int[int]*".try_into().unwrap(),
+            vec![Value::Variable("call1:int".try_into().unwrap())]
+        );
+
+        let mut tokens = str_to_tokens(instruction);
+
+        let actual = parse_instruction(&mut tokens).unwrap();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_instruction_alloc() {
+        let instruction = "y:int** = $alloc";
+        let expected = Instruction::Alloc(
+            "y:int**".try_into().unwrap()
+        );
+
+        let mut tokens = str_to_tokens(instruction);
+        let actual = parse_instruction(&mut tokens).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_instruction_addr_of() {
+        let instruction = "s.ptr:bar* = $addrof s:bar";
+        let expected = Instruction::AddrOf(
+            "s.ptr:bar*".try_into().unwrap(),
+            "s:bar".try_into().unwrap()
+        );
+
+        let mut tokens = str_to_tokens(instruction);
+        let actual = parse_instruction(&mut tokens).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_instruction_gep() {
+        let instruction = "a:foo* = $gep s.ptr:bar* 0 a";
+        let expected = Instruction::Gep(
+            "a:foo*".try_into().unwrap(),
+            "s.ptr:bar*".try_into().unwrap(),
+            "0".try_into().unwrap(),
+            "a".to_owned()
         );
 
         let mut tokens = str_to_tokens(instruction);
