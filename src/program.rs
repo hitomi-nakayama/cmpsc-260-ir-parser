@@ -13,6 +13,14 @@ pub struct Function {
     pub basic_blocks: Vec<BasicBlock>
 }
 
+impl Function {
+    pub fn entry_block(&self) -> &BasicBlock {
+        let entry = self.basic_blocks.first().unwrap();
+        assert_eq!(entry.name, "entry");
+        entry
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BasicBlock {
     pub name: BasicBlockName,
@@ -81,5 +89,26 @@ mod tests {
         let actual = bb.jumps_to();
 
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn entry_block() {
+        let function = Function {
+            name: "f".to_owned(),
+            params: Vec::new(),
+            return_type: "int".try_into().unwrap(),
+            basic_blocks: vec![
+                BasicBlock {
+                    name: "entry".into(),
+                    instructions: Vec::new()
+                }
+            ]
+        };
+        let expected = BasicBlock{
+            name: "entry".into(),
+            instructions: Vec::new()
+        };
+        let actual = function.entry_block();
+        assert_eq!(&expected, actual);
     }
 }
