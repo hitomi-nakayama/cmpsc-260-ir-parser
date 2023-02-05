@@ -1,5 +1,5 @@
-type FunctionName = String;
-type BasicBlockName = String;
+pub type FunctionName = String;
+pub type BasicBlockName = String;
 
 use crate::parse_result::{ParseResult, ParseError};
 
