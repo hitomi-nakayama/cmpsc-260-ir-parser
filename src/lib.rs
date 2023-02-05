@@ -1,4 +1,4 @@
-use std::io::BufRead;
+use std::{io::BufRead, mem};
 
 mod instruction;
 mod parse_result;
@@ -7,6 +7,7 @@ use instruction::{Value, Instruction, Operation, Relation, Variable, TypeName};
 use parse_result::{ParseResult, ParseError};
 
 pub struct IR {
+    functions: Vec<Function>
 }
 
 pub struct Function {
@@ -23,9 +24,14 @@ pub struct BasicBlock {
 }
 
 pub fn parse(source_reader: &mut SourceReader) -> ParseResult<IR> {
-    // parse_function_header(source_reader);
-
-    Ok(IR{})
+    let mut ir = IR {
+        functions: Vec::new()
+    };
+    while !source_reader.is_empty() {
+        let function = parse_function(source_reader)?;
+        ir.functions.push(function);
+    }
+    Ok(ir)
 }
 
 fn parse_function(source_reader: &mut SourceReader) -> ParseResult<Function> {
@@ -237,7 +243,7 @@ fn take_label(tokens: &mut TokenCursor) -> ParseResult<String> {
 fn take_value(tokens: &mut TokenCursor) -> ParseResult<Value> {
     let line_number = tokens.line_number();
 
-    let token = tokens.take().ok_or(ParseError::Generic("Expected a value here.".to_string()))?;
+    let token = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a value here.".to_string()))?;
 
     Value::try_from(token.as_str())
 }
@@ -245,7 +251,7 @@ fn take_value(tokens: &mut TokenCursor) -> ParseResult<Value> {
 fn take_variable(tokens: &mut TokenCursor) -> ParseResult<Variable> {
     let line_number = tokens.line_number();
 
-    let token = tokens.take().ok_or(ParseError::Generic("Expected a parameter here.".to_string()))?;
+    let token = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a parameter here.".to_string()))?;
     Variable::try_from(token.as_str())
 }
 
@@ -253,7 +259,8 @@ fn take_variable(tokens: &mut TokenCursor) -> ParseResult<Variable> {
 
 pub struct SourceReader<'a> {
     line_number: usize,
-    line_reader: Box<dyn BufRead + 'a>
+    line_reader: Box<dyn BufRead + 'a>,
+    next_line: Option<LineResult>
 }
 
 #[derive(Clone, Debug)]
@@ -265,13 +272,26 @@ pub struct LineResult {
 
 impl<'a> SourceReader<'a> {
     pub fn new<T: BufRead + 'a>(line_reader: T) -> Self {
-        SourceReader {
+        let mut reader = SourceReader {
             line_reader: Box::new(line_reader),
-            line_number: 0
-        }
+            line_number: 0,
+            next_line: None
+        };
+        reader.read_next_line();
+        reader
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.next_line.is_none()
     }
 
     pub fn read_line(&mut self) -> Option<LineResult> {
+        let line = mem::take(&mut self.next_line);
+        self.read_next_line();
+        return line;
+    }
+
+    fn read_next_line(&mut self) {
         loop {
             self.line_number += 1;
 
@@ -279,16 +299,18 @@ impl<'a> SourceReader<'a> {
 
             let result = self.line_reader.read_line(&mut line).unwrap();
             if result == 0 {
-                return None;
+                self.next_line = None;
+                return;
             }
             let is_indented = line.starts_with(" ") || line.starts_with("\t");
             let tokens = tokenize_line(&line);
             if tokens.len() > 0 {
-                return Some(LineResult{
+                self.next_line = Some(LineResult{
                     is_indented,
                     line_number: self.line_number,
                     tokens
                 });
+                return;
             }
         }
     }
@@ -388,8 +410,6 @@ fn tokenize_line(input: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
-
     use super::*;
 
     #[test]
@@ -743,6 +763,10 @@ entry:
                 )
             ]
         };
+
+        let mut reader = SourceReader::new(basic_block.as_bytes());
+        let actual = parse_basic_blocks(&mut reader).unwrap();
+        assert_eq!(vec![expected], actual);
     }
 
     #[test]
