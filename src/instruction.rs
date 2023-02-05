@@ -6,6 +6,7 @@ use crate::parse_result::{ParseResult, ParseError};
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Instruction {
     Arith(Operation, Variable, Value, Value),
+    Cmp(Relation, Variable, Value, Value),
     Phi(Variable, Vec<Value>),
     Copy(Variable, Value),
     Load(Variable, Value),
@@ -26,15 +27,55 @@ pub enum Operation {
     Add
 }
 
+impl TryFrom<&str> for Operation {
+    type Error = ParseError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        use Operation::*;
+        match value {
+            "add" => Ok(Add),
+            _ => Err(ParseError::Generic(format!("Unknown arithmetic operation: {value}")))
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Relation {
-    Leq
+    Lte  // less than or equal
+}
+
+impl TryFrom<&str> for Relation {
+    type Error = ParseError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        use Relation::*;
+        match value {
+            "lte" => Ok(Lte),
+            _ => Err(ParseError::Generic(format!("Invalid relation {}", value)))
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Value {
     Constant(i32),
     Variable(Variable),
+}
+
+impl Value {
+    pub fn is_variable(&self) -> bool {
+        match self {
+            Value::Variable(_) => true,
+            _ => false
+        }
+    }
+
+    pub fn is_constant(&self) -> bool {
+        match self {
+            Value::Constant(_) => true,
+            _ => false
+        }
+    }
 }
 
 impl TryFrom<&str> for Value {

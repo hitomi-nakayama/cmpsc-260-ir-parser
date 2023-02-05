@@ -50,7 +50,6 @@ fn parse_function_header(source_reader: &mut SourceReader) -> ParseResult<(Strin
 
     tokens.expect("function")?;
     let function_name = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a function name here.".to_string()))?;
-    tokens.expect("(")?;
     let params = parse_function_params(&mut tokens)?;
     tokens.expect("->")?;
     let return_type = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a return type here.".to_string()))?;
@@ -60,27 +59,6 @@ fn parse_function_header(source_reader: &mut SourceReader) -> ParseResult<(Strin
     }
 
     Ok((function_name, params, return_type))
-}
-
-fn parse_function_params(tokens: &mut TokenCursor) -> ParseResult<Vec<Variable>> {
-    let mut params: Vec<Variable> = Vec::new();
-
-    let line_number = tokens.line_number();
-
-    if tokens.peek().ok_or(ParseError::Expected(line_number, ")".to_string()))? == ")" {
-        return Ok(params);
-    }
-
-    loop {
-        let variable = take_variable(tokens)?;
-        params.push(variable);
-
-        if tokens.peek().ok_or(ParseError::Expected(line_number, ")".to_string()))? == ")" {
-            tokens.take();
-            return Ok(params);
-        }
-        tokens.expect(",")?;
-    }
 }
 
 fn parse_basic_blocks(source_reader: &mut SourceReader) -> ParseResult<Vec<BasicBlock>> {
@@ -138,7 +116,78 @@ fn parse_instruction(tokens: &mut TokenCursor) -> ParseResult<Instruction> {
             let src = take_value(tokens)?;
             Ok(Store(dest, src))
         },
-        _ => Err(ParseError::Generic(format!("Unknown instruction: {}", tokens.peek().unwrap())))
+        _ => parse_assign_instruction(tokens)
+    }
+}
+
+fn parse_assign_instruction(tokens: &mut TokenCursor) -> ParseResult<Instruction> {
+    let lhs = take_variable(tokens)?;
+    tokens.expect("=")?;
+
+    let opcode = tokens.take().ok_or(ParseError::Generic("Expected an instruction here.".into()))?;
+    match opcode.as_str() {
+        "$arith" => {
+            let op = tokens.take().ok_or(ParseError::Generic("Expected an arithmetic operation here.".into()))?;
+            let op = op.as_str().try_into()?;
+
+            let rhs1 = take_value(tokens)?;
+            let rhs2 = take_value(tokens)?;
+            Ok(Instruction::Arith(op, lhs, rhs1, rhs2))
+        },
+        "$cmp" => {
+            let relation = tokens.take().ok_or(ParseError::Generic("Expected a comparison relation here.".into()))?;
+            let relation = relation.as_str().try_into()?;
+
+            let rhs1 = take_value(tokens)?;
+            let rhs2 = take_value(tokens)?;
+            Ok(Instruction::Cmp(relation, lhs, rhs1, rhs2))
+        },
+        "$icall" => {
+            let func_ptr = take_variable(tokens)?;
+            let args = parse_value_list(tokens)?;
+            Ok(Instruction::ICall(lhs, func_ptr, args))
+        },
+        "$phi" => {
+            let args = parse_value_list(tokens)?;
+            Ok(Instruction::Phi(lhs, args))
+        }
+        x => Err(ParseError::Generic(format!("Unknown instruction: {x}")))
+    }
+}
+
+fn parse_function_params(tokens: &mut TokenCursor) -> ParseResult<Vec<Variable>> {
+    // We don't want to duplicate code, so we'll just filter a list of values
+    let values = parse_value_list(tokens)?;
+    let mut params: Vec<Variable> = Vec::new();
+    for value in values {
+        match value {
+            Value::Variable(var) => params.push(var),
+            _ => return Err(ParseError::Generic("Expected a variable here.".into()))
+        }
+    }
+    Ok(params)
+}
+
+fn parse_value_list(tokens: &mut TokenCursor) -> ParseResult<Vec<Value>> {
+    let line_number = tokens.line_number();
+    let mut params: Vec<Value> = Vec::new();
+
+    tokens.expect("(")?;
+
+    if tokens.peek().ok_or(ParseError::Expected(line_number, ")".to_string()))? == ")" {
+        return Ok(params);
+    }
+
+    loop {
+        println!("Token: {}", tokens.peek().unwrap());
+        let variable = take_value(tokens)?;
+        params.push(variable);
+
+        if tokens.peek().ok_or(ParseError::Expected(line_number, ")".to_string()))? == ")" {
+            tokens.take();
+            return Ok(params);
+        }
+        tokens.expect(",")?;
     }
 }
 
@@ -360,7 +409,7 @@ d e f
 
     #[test]
     fn parse_function_params_0() {
-        let params = vec!["value:int", ",", "left:TreeNode*", ",", "right:TreeNode*", ")"];
+        let params = vec!["(", "value:int", ",", "left:TreeNode*", ",", "right:TreeNode*", ")"];
         let params: Vec<String> = params.iter().map(|s| s.to_string()).collect();
         let mut params = TokenCursor::new(0, params);
 
@@ -376,7 +425,7 @@ d e f
 
     #[test]
     fn parse_function_params_empty() {
-        let params = vec![")".to_string()];
+        let params = vec!["(".to_owned(), ")".to_owned()];
         let mut params = TokenCursor::new(0, params);
 
         let expected: Vec<Variable> = vec![];
@@ -471,6 +520,56 @@ d e f
 
         let actual = parse_instruction(&mut tokens).unwrap();
 
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_instruction_arith_add() {
+        let instruction = "inc:int = $arith add i6:int 1";
+        let expected = Instruction::Arith(
+            Operation::Add,
+            "inc:int".try_into().unwrap(),
+            "i6:int".try_into().unwrap(),
+            "1".try_into().unwrap()
+        );
+
+        let mut tokens = str_to_tokens(instruction);
+
+        let actual = parse_instruction(&mut tokens).unwrap();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_instruction_cmp_lte() {
+        let instruction = "cmp:int = $cmp lte i:int 1";
+        let expected = Instruction::Cmp(
+            Relation::Lte,
+            "cmp:int".try_into().unwrap(),
+            "i:int".try_into().unwrap(),
+            "1".try_into().unwrap()
+        );
+
+        let mut tokens = str_to_tokens(instruction);
+
+        let actual = parse_instruction(&mut tokens).unwrap();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_instruction_phi() {
+        let instruction = "a.0:int = $phi(add:int, sub:int)";
+        let expected = Instruction::Phi(
+            "a.0:int".try_into().unwrap(),
+            vec![
+                "add:int".try_into().unwrap(),
+                "sub:int".try_into().unwrap()
+            ]
+        );
+
+        let mut tokens = str_to_tokens(instruction);
+        let actual = parse_instruction(&mut tokens).unwrap();
         assert_eq!(expected, actual);
     }
 
