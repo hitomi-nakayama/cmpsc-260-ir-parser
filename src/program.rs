@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::instruction::{BasicBlockName, FunctionName, Instruction, TypeName, Variable};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -10,12 +12,12 @@ pub struct Function {
     pub name: FunctionName,
     pub params: Vec<Variable>,
     pub return_type: TypeName,
-    pub basic_blocks: Vec<BasicBlock>
+    pub basic_blocks: HashMap<BasicBlockName, BasicBlock>
 }
 
 impl Function {
     pub fn entry_block(&self) -> &BasicBlock {
-        let entry = self.basic_blocks.first().unwrap();
+        let entry = self.basic_blocks.get("entry").expect("Function does not have an entry block");
         assert_eq!(entry.name, "entry");
         entry
     }
@@ -97,8 +99,8 @@ mod tests {
             name: "f".to_owned(),
             params: Vec::new(),
             return_type: "int".try_into().unwrap(),
-            basic_blocks: vec![
-                BasicBlock {
+            basic_blocks: map![
+                "entry".to_owned() => BasicBlock {
                     name: "entry".into(),
                     instructions: Vec::new()
                 }

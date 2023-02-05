@@ -1,4 +1,8 @@
 mod instruction;
+
+#[macro_use]
+mod map_macro;
+
 mod parse_result;
 mod parser;
 mod program;

@@ -1,6 +1,9 @@
+use std::collections::HashMap;
+
 use crate::instruction::TypeName;
 #[allow(unused_imports)]
-use crate::instruction::{Instruction, Operation, Relation, Value, Variable};
+use crate::instruction::{BasicBlockName, Instruction, Operation, Relation,
+    Value, Variable};
 
 use crate::parse_result::{ParseError, ParseResult};
 use crate::program::{BasicBlock, Function, Program};
@@ -55,8 +58,9 @@ fn parse_function_header(source_reader: &mut SourceReader) -> ParseResult<(Strin
     Ok((function_name, params, return_type))
 }
 
-fn parse_basic_blocks(source_reader: &mut SourceReader) -> ParseResult<Vec<BasicBlock>> {
-    let mut basic_blocks: Vec<BasicBlock> = Vec::new();
+fn parse_basic_blocks(source_reader: &mut SourceReader) -> ParseResult<HashMap<BasicBlockName, BasicBlock>> {
+    let mut basic_blocks = HashMap::new();
+    let mut current_block: Option<BasicBlock> = None;
 
     loop {
         let line = source_reader.read_line().ok_or(ParseError::Generic("No line to consume".to_string()))?;
@@ -66,18 +70,22 @@ fn parse_basic_blocks(source_reader: &mut SourceReader) -> ParseResult<Vec<Basic
 
         if is_indented {
             let instruction = parse_instruction(&mut tokens)?;
-            if let Some(block) = basic_blocks.last_mut() {
+            if let Some(block) = current_block.as_mut() {
                 block.instructions.push(instruction);
             } else {
                 return Err(ParseError::Generic("Expected a basic block label.".into()));
             }
         } else {
+            if let Some(block) = current_block {
+                basic_blocks.insert(block.name.to_owned(), block);
+            }
             let label = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a basic block label here.".to_string()))?;
             if label == "}" {
+
                 return Ok(basic_blocks);
             }
             let label = label.strip_suffix(":").ok_or(ParseError::Expected(line_number, "Expected a basic block label here.".to_string()))?;
-            basic_blocks.push(BasicBlock{
+            current_block = Some(BasicBlock{
                 name: label.to_owned(),
                 instructions: Vec::new()
             });
@@ -538,27 +546,29 @@ entry:
     x:int = $copy call:int
     $ret 0
 }";
-        let expected = BasicBlock{
-            name: "entry".to_owned(),
-            instructions: vec![
-                Instruction::Call(
-                    "call:int".try_into().unwrap(),
-                    "input".to_owned(),
-                    vec![]
-                ),
-                Instruction::Copy(
-                    "x:int".try_into().unwrap(),
-                    "call:int".try_into().unwrap()
-                ),
-                Instruction::Ret(
-                    Value::Constant(0)
-                )
-            ]
-        };
+        let expected = map![
+            "entry".to_owned() => BasicBlock{
+                name: "entry".to_owned(),
+                instructions: vec![
+                    Instruction::Call(
+                        "call:int".try_into().unwrap(),
+                        "input".to_owned(),
+                        vec![]
+                    ),
+                    Instruction::Copy(
+                        "x:int".try_into().unwrap(),
+                        "call:int".try_into().unwrap()
+                    ),
+                    Instruction::Ret(
+                        Value::Constant(0)
+                    )
+                ]
+            }
+        ];
 
         let mut reader = SourceReader::new(basic_block.as_bytes());
         let actual = parse_basic_blocks(&mut reader).unwrap();
-        assert_eq!(vec![expected], actual);
+        assert_eq!(expected, actual);
     }
 
     #[test]
@@ -571,8 +581,8 @@ if.else:
     call3:int = $call input()
     $jump if.end
 }";
-        let expected = vec![
-            BasicBlock{
+        let expected = map![
+            "entry".to_owned() => BasicBlock{
                 name: "entry".to_owned(),
                 instructions: vec![
                     Instruction::Cmp(
@@ -588,7 +598,7 @@ if.else:
                     )
                 ]
             },
-            BasicBlock{
+            "if.else".to_owned() => BasicBlock{
                 name: "if.else".to_owned(),
                 instructions: vec![
                     Instruction::Call(
