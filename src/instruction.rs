@@ -22,6 +22,29 @@ pub enum Instruction {
     Branch(Variable, BasicBlockName, BasicBlockName),
 }
 
+impl Instruction {
+    pub fn lhs(&self) -> Option<&Variable> {
+        match self {
+            Instruction::Arith(_, lhs, _, _)
+            | Instruction::Cmp(_, lhs, _, _)
+            | Instruction::Phi(lhs, _)
+            | Instruction::Copy(lhs, _)
+            | Instruction::Load(lhs, _)
+            | Instruction::Select(lhs, _, _, _)
+            | Instruction::Call(lhs, _, _)
+            | Instruction::ICall(lhs, _, _)
+            | Instruction::Alloc(lhs)
+            | Instruction::AddrOf(lhs, _)
+            | Instruction::Gep(lhs, _, _, _) => Some(lhs),
+
+            Instruction::Branch(..)
+            | Instruction::Jump(..)
+            | Instruction::Ret(..)
+            | Instruction::Store(..) => None
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Operation {
     Add,
