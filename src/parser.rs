@@ -7,8 +7,8 @@ use crate::program::{BasicBlock, Function, Program};
 use crate::text::{SourceReader, TokenCursor};
 
 
-pub fn parse(source_reader: &mut SourceReader) -> ParseResult<IR> {
-    let mut ir = IR {
+pub fn parse(source_reader: &mut SourceReader) -> ParseResult<Program> {
+    let mut ir = Program {
         functions: Vec::new()
     };
     while !source_reader.is_empty() {
