@@ -1,7 +1,7 @@
 use std::io::BufRead;
 
 mod instruction;
-use instruction::{Instruction, Operation, Relation, Variable, TypeName};
+use instruction::{Value, Instruction, Operation, Relation, Variable, TypeName};
 
 mod parse_result;
 use parse_result::{ParseResult, ParseError};
@@ -395,7 +395,23 @@ d e f
     #[test]
     fn parse_instruction_store() {
         let instruction = "$store x:int* 0";
-        let expected = Instruction::Jump("if.end".into());
+        let expected = Instruction::Store("x:int*".try_into().unwrap(), Value::Constant(0));
+
+        let mut tokens = str_to_tokens(instruction);
+
+        let actual = parse_instruction(&mut tokens).unwrap();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_instruction_icall() {
+        let instruction = "call2:int = $icall i1:int[int]*(call1:int)";
+        let expected = Instruction::ICall(
+            "call2:int".try_into().unwrap(),
+            "i1:int[int]*".try_into().unwrap(),
+            vec![Value::Variable("call1:int".try_into().unwrap())]
+        );
 
         let mut tokens = str_to_tokens(instruction);
 
