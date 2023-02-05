@@ -87,6 +87,7 @@ impl TryFrom<&str> for Value {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         if let Ok(constant) = value.parse() {
+            println!("Parsed constant {} as {}", value, constant);
             Ok(Value::Constant(constant))
         } else {
             Ok(Value::Variable(value.try_into()?))
@@ -306,5 +307,10 @@ mod tests{
         assert_eq!(expected, actual);
     }
 
+    #[test]
+    fn test_value_0() {
+        let value = Value::try_from("0").unwrap();
+        assert_eq!(value, Value::Constant(0));
+    }
 
 }
