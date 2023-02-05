@@ -206,6 +206,7 @@ fn parse_value_list(tokens: &mut TokenCursor) -> ParseResult<Vec<Value>> {
     tokens.expect("(")?;
 
     if tokens.peek().ok_or(ParseError::Expected(line_number, ")".to_string()))? == ")" {
+        tokens.take();
         return Ok(params);
     }
 
@@ -279,6 +280,23 @@ mod tests {
 
         let expected_name = "foo".to_string();
         let expected_params = vec![Variable::try_from("p:int").unwrap()];
+        let expected_return_type: TypeName = "int".try_into().unwrap();
+
+        let actual = parse_function_header(&mut reader).unwrap();
+        let (actual_name, actual_params, actual_return_type) = actual;
+
+        assert_eq!(expected_name, actual_name);
+        assert_eq!(expected_params, actual_params);
+        assert_eq!(expected_return_type, actual_return_type);
+    }
+
+    #[test]
+    fn parse_function_header_empty() {
+        let source = "function main() -> int {";
+        let mut reader = SourceReader::new(source.as_bytes());
+
+        let expected_name = "main".to_owned();
+        let expected_params: Vec<Variable> = Vec::new();
         let expected_return_type: TypeName = "int".try_into().unwrap();
 
         let actual = parse_function_header(&mut reader).unwrap();
