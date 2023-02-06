@@ -49,7 +49,8 @@ impl Instruction {
 pub enum Operation {
     Add,
     Div,
-    Mul
+    Mul,
+    Sub
 }
 
 impl TryFrom<&str> for Operation {
@@ -61,6 +62,7 @@ impl TryFrom<&str> for Operation {
             "add" => Ok(Add),
             "div" => Ok(Div),
             "mul" => Ok(Mul),
+            "sub" => Ok(Sub),
             _ => Err(ParseError::Generic(format!("Unknown arithmetic operation: {value}")))
         }
     }
