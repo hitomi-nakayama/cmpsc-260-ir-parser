@@ -12,11 +12,11 @@ use crate::text::{SourceReader, TokenCursor};
 
 pub fn parse(source_reader: &mut SourceReader) -> ParseResult<Program> {
     let mut ir = Program {
-        functions: Vec::new()
+        functions: HashMap::new()
     };
     while !source_reader.is_empty() {
         let function = parse_function(source_reader)?;
-        ir.functions.push(function);
+        ir.functions.insert(function.name.clone(), function);
     }
     Ok(ir)
 }

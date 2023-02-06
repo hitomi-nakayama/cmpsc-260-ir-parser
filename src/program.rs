@@ -4,7 +4,7 @@ use crate::instruction::{BasicBlockName, FunctionName, Instruction, TypeName, Va
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Program {
-    pub functions: Vec<Function>
+    pub functions: HashMap<FunctionName, Function>
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
