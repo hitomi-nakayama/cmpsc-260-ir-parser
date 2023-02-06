@@ -7,23 +7,23 @@ use crate::instruction::{BasicBlockName, Instruction, Operation, Relation,
 
 use crate::parse_result::{ParseError, ParseResult};
 use crate::program::{BasicBlock, Function, Program};
-use crate::text::{SourceReader, TokenCursor};
+use crate::text::{TokenReader};
 
 
-pub fn parse(source_reader: &mut SourceReader) -> ParseResult<Program> {
+pub fn parse(tokens: &mut TokenReader) -> ParseResult<Program> {
     let mut ir = Program {
         functions: HashMap::new()
     };
-    while !source_reader.is_empty() {
-        let function = parse_function(source_reader)?;
+    while !(tokens.empty()) {
+        let function = parse_function(tokens)?;
         ir.functions.insert(function.name.clone(), function);
     }
     Ok(ir)
 }
 
-fn parse_function(source_reader: &mut SourceReader) -> ParseResult<Function> {
-    let (function_name, params, return_type) = parse_function_header(source_reader)?;
-    let basic_blocks = parse_basic_blocks(source_reader)?;
+fn parse_function(tokens: &mut TokenReader) -> ParseResult<Function> {
+    let (function_name, params, return_type) = parse_function_header(tokens)?;
+    let basic_blocks = parse_basic_blocks(tokens)?;
 
     Ok(Function{
         name: function_name,
@@ -33,88 +33,72 @@ fn parse_function(source_reader: &mut SourceReader) -> ParseResult<Function> {
     })
 }
 
-fn parse_function_header(source_reader: &mut SourceReader) -> ParseResult<(String, Vec<Variable>, TypeName)> {
-    let line = source_reader.read_line();
-    if line.is_none() {
-        return Err(ParseError::Generic("No line to consume".to_string()));
-    }
-    let line = line.unwrap();
-    let line_number = line.line_number;
-    let mut tokens = TokenCursor::from(line);
+fn parse_function_header(tokens: &mut TokenReader) -> ParseResult<(String, Vec<Variable>, TypeName)> {
+    let line_number = tokens.line_number();
 
     tokens.expect("function")?;
     let function_name = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a function name here.".to_string()))?;
-    let params = parse_function_params(&mut tokens)?;
+    let params = parse_function_params(tokens)?;
     tokens.expect("->")?;
 
     let return_type = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a return type here.".to_string()))?;
     let return_type = TypeName::try_from(return_type.as_str())?;
 
     tokens.expect("{")?;
-    if !(tokens.empty()) {
-        return Err(ParseError::Unexpected(line_number, tokens.take().unwrap()));
-    }
 
     Ok((function_name, params, return_type))
 }
 
-fn parse_basic_blocks(source_reader: &mut SourceReader) -> ParseResult<HashMap<BasicBlockName, BasicBlock>> {
+fn parse_basic_blocks(tokens: &mut TokenReader) -> ParseResult<HashMap<BasicBlockName, BasicBlock>> {
     let mut basic_blocks = HashMap::new();
-    let mut current_block: Option<BasicBlock> = None;
 
     loop {
-        let line = source_reader.read_line().ok_or(ParseError::Generic("No line to consume".to_string()))?;
-        let line_number = line.line_number;
-        let mut tokens = TokenCursor::from(line);
-
-        if !(is_end_of_basic_block(line_number, &mut tokens)?) {
-            let instruction = parse_instruction(&mut tokens)?;
-            if let Some(block) = current_block.as_mut() {
-                block.instructions.push(instruction);
-            } else {
-                return Err(ParseError::Generic("Expected a basic block label.".into()));
-            }
-        } else {
-            if let Some(block) = current_block {
-                basic_blocks.insert(block.name.to_owned(), block);
-            }
-            let label = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a basic block label here.".to_string()))?;
-            if label == "}" {
-
-                return Ok(basic_blocks);
-            }
-            let label = label.strip_suffix(":").ok_or(ParseError::Expected(line_number, "Expected a basic block label here.".to_string()))?;
-            current_block = Some(BasicBlock{
-                name: label.to_owned(),
-                instructions: Vec::new()
-            });
+        let label = take_label(tokens)?;
+        let mut block = BasicBlock {
+            name: label,
+            instructions: Vec::new()
+        };
+        while !(is_end_of_basic_block(tokens)?) {
+            let instruction = parse_instruction(tokens)?;
+            block.instructions.push(instruction);
+        }
+        basic_blocks.insert(block.name.clone(), block);
+        if is_end_of_function(tokens)? {
+            tokens.expect("}")?;
+            break;
         }
     }
+    Ok(basic_blocks)
 }
 
-fn is_end_of_basic_block(line_number: usize, tokens: &mut TokenCursor) -> ParseResult<bool> {
+fn is_end_of_basic_block(tokens: &mut TokenReader) -> ParseResult<bool> {
+    Ok(is_end_of_function(tokens)? || is_label(tokens)?)
+}
+
+fn is_end_of_function(tokens: &mut TokenReader) -> ParseResult<bool> {
+    let line_number = tokens.line_number();
     let next_token = tokens.peek().ok_or(ParseError::Expected(line_number,
         "Expected an instruction, basic block label, or '}' here.".to_string()))?;
 
-    let end_of_block = next_token == "}" || is_label(next_token);
+    let end_of_block = next_token == "}";
     Ok(end_of_block)
 }
 
-fn parse_instruction(tokens: &mut TokenCursor) -> ParseResult<Instruction> {
+fn parse_instruction(tokens: &mut TokenReader) -> ParseResult<Instruction> {
     use Instruction::*;
 
-    let first_token = tokens.peek().ok_or(ParseError::Generic("Expected an instruction here.".into()))?.as_str();
+    let first_token = tokens.peek().ok_or(ParseError::Generic("Expected an instruction here.".into()))?;
     match first_token {
         "$branch" => {
             tokens.take();
             let cond = take_variable(tokens)?;
-            let true_branch = take_label(tokens)?;
-            let false_branch = take_label(tokens)?;
+            let true_branch = take_block_name(tokens)?;
+            let false_branch = take_block_name(tokens)?;
             Ok(Branch(cond, true_branch, false_branch))
         },
         "$jump" => {
             tokens.take();
-            let label = take_label(tokens)?;
+            let label = take_block_name(tokens)?;
             Ok(Jump(label))
         },
         "$ret" => {
@@ -132,7 +116,7 @@ fn parse_instruction(tokens: &mut TokenCursor) -> ParseResult<Instruction> {
     }
 }
 
-fn parse_assign_instruction(tokens: &mut TokenCursor) -> ParseResult<Instruction> {
+fn parse_assign_instruction(tokens: &mut TokenReader) -> ParseResult<Instruction> {
     use Instruction::*;
 
     let lhs = take_variable(tokens)?;
@@ -164,7 +148,7 @@ fn parse_assign_instruction(tokens: &mut TokenCursor) -> ParseResult<Instruction
             Ok(Cmp(relation, lhs, rhs1, rhs2))
         },
         "$call" => {
-            let label = take_label(tokens)?;
+            let label = take_block_name(tokens)?;
             let args = parse_value_list(tokens)?;
             Ok(Call(lhs, label, args))
         },
@@ -201,7 +185,7 @@ fn parse_assign_instruction(tokens: &mut TokenCursor) -> ParseResult<Instruction
     }
 }
 
-fn parse_function_params(tokens: &mut TokenCursor) -> ParseResult<Vec<Variable>> {
+fn parse_function_params(tokens: &mut TokenReader) -> ParseResult<Vec<Variable>> {
     // We don't want to duplicate code, so we'll just filter a list of values
     let values = parse_value_list(tokens)?;
     let mut params: Vec<Variable> = Vec::new();
@@ -214,7 +198,7 @@ fn parse_function_params(tokens: &mut TokenCursor) -> ParseResult<Vec<Variable>>
     Ok(params)
 }
 
-fn parse_value_list(tokens: &mut TokenCursor) -> ParseResult<Vec<Value>> {
+fn parse_value_list(tokens: &mut TokenReader) -> ParseResult<Vec<Value>> {
     let line_number = tokens.line_number();
     let mut params: Vec<Value> = Vec::new();
 
@@ -237,16 +221,33 @@ fn parse_value_list(tokens: &mut TokenCursor) -> ParseResult<Vec<Value>> {
     }
 }
 
-fn take_label(tokens: &mut TokenCursor) -> ParseResult<String> {
+fn is_label(tokens: &mut TokenReader) -> ParseResult<bool> {
+    let label_error = ParseError::Expected(
+        tokens.line_number(),
+        "Expected a label here.".to_string());
+    let label = tokens.peek().ok_or(label_error)?;
+    Ok(label.strip_suffix(':').is_some())
+}
+
+fn take_label(tokens: &mut TokenReader) -> ParseResult<BasicBlockName> {
+    let label = peek_label(tokens)?;
+    tokens.take();
+    Ok(label)
+}
+
+fn peek_label(tokens: &mut TokenReader) -> ParseResult<BasicBlockName> {
+    let line_number = tokens.line_number();
+    let label_error = ParseError::Expected(line_number, "Expected a label here.".to_string());
+    let label = tokens.peek().ok_or(label_error.clone())?;
+    Ok(label.strip_suffix(':').ok_or(label_error.clone())?.to_owned())
+}
+
+fn take_block_name(tokens: &mut TokenReader) -> ParseResult<BasicBlockName> {
     let label = tokens.take().ok_or(ParseError::Generic("Expected a label here.".to_string()))?;
     Ok(label)
 }
 
-fn is_label(token: &str) -> bool {
-    token.ends_with(':')
-}
-
-fn take_value(tokens: &mut TokenCursor) -> ParseResult<Value> {
+fn take_value(tokens: &mut TokenReader) -> ParseResult<Value> {
     let line_number = tokens.line_number();
 
     let token = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a value here.".to_string()))?;
@@ -254,7 +255,7 @@ fn take_value(tokens: &mut TokenCursor) -> ParseResult<Value> {
     Value::try_from(token.as_str())
 }
 
-fn take_variable(tokens: &mut TokenCursor) -> ParseResult<Variable> {
+fn take_variable(tokens: &mut TokenReader) -> ParseResult<Variable> {
     let line_number = tokens.line_number();
 
     let token = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a parameter here.".to_string()))?;
@@ -263,12 +264,14 @@ fn take_variable(tokens: &mut TokenCursor) -> ParseResult<Variable> {
 
 #[cfg(test)]
 mod tests {
+    use std::io::BufReader;
+
     use super::*;
     #[test]
     fn parse_function_params_0() {
         let params = vec!["(", "value:int", ",", "left:TreeNode*", ",", "right:TreeNode*", ")"];
         let params: Vec<String> = params.iter().map(|s| s.to_string()).collect();
-        let mut params = TokenCursor::new(0, params);
+        let mut params = TokenReader::from_tokens(params);
 
         let expected = vec![
             Variable::try_from("value:int").unwrap(),
@@ -283,7 +286,7 @@ mod tests {
     #[test]
     fn parse_function_params_empty() {
         let params = vec!["(".to_owned(), ")".to_owned()];
-        let mut params = TokenCursor::new(0, params);
+        let mut params = TokenReader::from_tokens(params);
 
         let expected: Vec<Variable> = vec![];
 
@@ -294,7 +297,7 @@ mod tests {
     #[test]
     fn parse_function_header_0() {
         let source = "function foo(p:int) -> int {";
-        let mut reader = SourceReader::new(source.as_bytes());
+        let mut reader = TokenReader::from_buf_read(source.as_bytes());
 
         let expected_name = "foo".to_string();
         let expected_params = vec![Variable::try_from("p:int").unwrap()];
@@ -311,7 +314,7 @@ mod tests {
     #[test]
     fn parse_function_header_empty() {
         let source = "function main() -> int {";
-        let mut reader = SourceReader::new(source.as_bytes());
+        let mut reader = TokenReader::from_buf_read(source.as_bytes());
 
         let expected_name = "main".to_owned();
         let expected_params: Vec<Variable> = Vec::new();
@@ -323,6 +326,52 @@ mod tests {
         assert_eq!(expected_name, actual_name);
         assert_eq!(expected_params, actual_params);
         assert_eq!(expected_return_type, actual_return_type);
+    }
+
+    #[test]
+    fn parse_function_header_no_spaces() {
+        let source = "function main(x:int*)->int{";
+        let mut reader = TokenReader::from_buf_read(source.as_bytes());
+
+        let expected_name = "main".to_owned();
+        let expected_params: Vec<Variable> = vec!["x:int*".try_into().unwrap()];
+        let expected_return_type: TypeName = "int".try_into().unwrap();
+
+        let actual = parse_function_header(&mut reader).unwrap();
+        let (actual_name, actual_params, actual_return_type) = actual;
+
+        assert_eq!(expected_name, actual_name);
+        assert_eq!(expected_params, actual_params);
+        assert_eq!(expected_return_type, actual_return_type);
+    }
+
+    #[test]
+    fn parse_function_line_independent() {
+        let source = "function
+main()
+->
+int{
+main.entry:
+$ret 0 }";
+
+        let mut reader = TokenReader::from_buf_read(source.as_bytes());
+
+        let expected = Function {
+            name: "main".to_owned(),
+            params: vec![],
+            return_type: "int".try_into().unwrap(),
+            basic_blocks: map![
+                "main.entry".to_owned() => BasicBlock {
+                    name: "main.entry".to_owned(),
+                    instructions: vec![
+                        Instruction::Ret(Value::Constant(0))
+                    ]
+                }
+            ]
+        };
+        let actual = parse_function(&mut reader).unwrap();
+        println!("{:#?}", actual);
+        assert_eq!(expected, actual);
     }
 
     #[test]
@@ -576,7 +625,7 @@ entry:
             }
         ];
 
-        let mut reader = SourceReader::new(basic_block.as_bytes());
+        let mut reader = TokenReader::from_buf_read(basic_block.as_bytes());
         let actual = parse_basic_blocks(&mut reader).unwrap();
         assert_eq!(expected, actual);
     }
@@ -597,7 +646,7 @@ $ret 0
             }
         ];
 
-        let mut reader = SourceReader::new(basic_block.as_bytes());
+        let mut reader = TokenReader::from_buf_read(basic_block.as_bytes());
         let actual = parse_basic_blocks(&mut reader).unwrap();
         assert_eq!(expected, actual);
     }
@@ -644,17 +693,14 @@ if.else:
             }
         ];
 
-        let mut reader = SourceReader::new(basic_blocks.as_bytes());
+        let mut reader = TokenReader::from_buf_read(basic_blocks.as_bytes());
         let actual = parse_basic_blocks(&mut reader).unwrap();
         assert_eq!(expected, actual);
     }
 
 
-    fn str_to_tokens(input: &str) -> TokenCursor {
-        let mut reader = SourceReader::new(input.as_bytes());
-
-        let line = reader.read_line().unwrap();
-        let tokens = TokenCursor::from(line);
+    fn str_to_tokens(input: &str) -> TokenReader {
+        let tokens = TokenReader::from_buf_read(input.as_bytes());
 
         return tokens;
     }
