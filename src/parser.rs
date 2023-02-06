@@ -64,11 +64,10 @@ fn parse_basic_blocks(source_reader: &mut SourceReader) -> ParseResult<HashMap<B
 
     loop {
         let line = source_reader.read_line().ok_or(ParseError::Generic("No line to consume".to_string()))?;
-        let is_indented = line.is_indented;
         let line_number = line.line_number;
         let mut tokens = TokenCursor::from(line);
 
-        if is_indented {
+        if !(is_end_of_basic_block(line_number, &mut tokens)?) {
             let instruction = parse_instruction(&mut tokens)?;
             if let Some(block) = current_block.as_mut() {
                 block.instructions.push(instruction);
@@ -91,6 +90,14 @@ fn parse_basic_blocks(source_reader: &mut SourceReader) -> ParseResult<HashMap<B
             });
         }
     }
+}
+
+fn is_end_of_basic_block(line_number: usize, tokens: &mut TokenCursor) -> ParseResult<bool> {
+    let next_token = tokens.peek().ok_or(ParseError::Expected(line_number,
+        "Expected an instruction, basic block label, or '}' here.".to_string()))?;
+
+    let end_of_block = next_token == "}" || is_label(next_token);
+    Ok(end_of_block)
 }
 
 fn parse_instruction(tokens: &mut TokenCursor) -> ParseResult<Instruction> {
@@ -233,6 +240,10 @@ fn parse_value_list(tokens: &mut TokenCursor) -> ParseResult<Vec<Value>> {
 fn take_label(tokens: &mut TokenCursor) -> ParseResult<String> {
     let label = tokens.take().ok_or(ParseError::Generic("Expected a label here.".to_string()))?;
     Ok(label)
+}
+
+fn is_label(token: &str) -> bool {
+    token.ends_with(':')
 }
 
 fn take_value(tokens: &mut TokenCursor) -> ParseResult<Value> {
@@ -558,6 +569,27 @@ entry:
                         "x:int".try_into().unwrap(),
                         "call:int".try_into().unwrap()
                     ),
+                    Instruction::Ret(
+                        Value::Constant(0)
+                    )
+                ]
+            }
+        ];
+
+        let mut reader = SourceReader::new(basic_block.as_bytes());
+        let actual = parse_basic_blocks(&mut reader).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_basic_block_indentation_insensitive() {
+        let basic_block = "entry:
+$ret 0
+}";
+        let expected = map![
+            "entry".to_owned() => BasicBlock{
+                name: "entry".to_owned(),
+                instructions: vec![
                     Instruction::Ret(
                         Value::Constant(0)
                     )

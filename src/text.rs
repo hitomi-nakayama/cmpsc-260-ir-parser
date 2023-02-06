@@ -11,7 +11,6 @@ pub struct SourceReader<'a> {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LineResult {
-    pub is_indented: bool,
     pub line_number: usize,
     pub tokens: Vec<String>
 }
@@ -48,11 +47,9 @@ impl<'a> SourceReader<'a> {
                 self.next_line = None;
                 return;
             }
-            let is_indented = line.starts_with(" ") || line.starts_with("\t");
             let tokens = tokenize_line(&line);
             if tokens.len() > 0 {
                 self.next_line = Some(LineResult{
-                    is_indented,
                     line_number: self.line_number,
                     tokens
                 });
@@ -201,20 +198,6 @@ d e f
         assert_eq!(line_1_expected, line_1_actual);
 
         assert!(reader.read_line().is_none());
-    }
-
-    #[test]
-    fn source_reader_indentation() {
-        let source = "a b c
-  d e f
-";
-        let mut reader = SourceReader::new(source.as_bytes());
-
-        let line_1_indent = reader.read_line().unwrap().is_indented;
-        assert!(!(line_1_indent));
-
-        let line_2_indent = reader.read_line().unwrap().is_indented;
-        assert!(line_2_indent);
     }
 
 }
