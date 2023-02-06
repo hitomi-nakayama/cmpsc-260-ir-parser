@@ -122,8 +122,8 @@ type VariableName = String;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Variable {
-    name: VariableName,
-    type_name: TypeName
+    pub name: VariableName,
+    pub type_name: TypeName
 }
 
 impl TryFrom<&str> for Variable {
@@ -141,8 +141,8 @@ impl TryFrom<&str> for Variable {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct TypeName {
-    indirection_level: u8,  // a function pointer has indirection level 1
-    base_type: BaseType
+    pub indirection_level: u8,  // a function pointer has indirection level 1
+    pub base_type: BaseType
 }
 
 impl TypeName {
