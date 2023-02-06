@@ -219,7 +219,6 @@ fn parse_value_list(tokens: &mut TokenCursor) -> ParseResult<Vec<Value>> {
     }
 
     loop {
-        println!("Token: {}", tokens.peek().unwrap());
         let variable = take_value(tokens)?;
         params.push(variable);
 
