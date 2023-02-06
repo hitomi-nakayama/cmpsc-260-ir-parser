@@ -110,7 +110,6 @@ impl TryFrom<&str> for Value {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         if let Ok(constant) = value.parse() {
-            println!("Parsed constant {} as {}", value, constant);
             Ok(Value::Constant(constant))
         } else {
             Ok(Value::Variable(value.try_into()?))
