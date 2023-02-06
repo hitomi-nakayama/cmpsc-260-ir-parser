@@ -264,8 +264,6 @@ fn take_variable(tokens: &mut TokenReader) -> ParseResult<Variable> {
 
 #[cfg(test)]
 mod tests {
-    use std::io::BufReader;
-
     use super::*;
     #[test]
     fn parse_function_params_0() {
