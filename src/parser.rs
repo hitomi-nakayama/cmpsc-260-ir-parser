@@ -157,7 +157,7 @@ fn parse_assign_instruction(tokens: &mut TokenReader) -> ParseResult<Instruction
             Ok(Copy(lhs, rhs))
         },
         "$gep" => {
-            let rhs1 = take_variable(tokens)?;
+            let rhs1 = take_value(tokens)?;
             let rhs2 = take_value(tokens)?;
             let rhs3 = tokens.take().ok_or(ParseError::Generic("Expected a value here.".into()))?;
             Ok(Gep(lhs, rhs1, rhs2, rhs3))
@@ -176,7 +176,7 @@ fn parse_assign_instruction(tokens: &mut TokenReader) -> ParseResult<Instruction
             Ok(Phi(lhs, args))
         }
         "$select" => {
-            let cond = take_variable(tokens)?;
+            let cond = take_value(tokens)?;
             let true_value = take_value(tokens)?;
             let false_value = take_value(tokens)?;
             Ok(Select(lhs, cond, true_value, false_value))
