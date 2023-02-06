@@ -68,6 +68,7 @@ impl TryFrom<&str> for Operation {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Relation {
+    Eq,
     Lt,
     Lte,  // less than or equal
     Neq
@@ -79,6 +80,7 @@ impl TryFrom<&str> for Relation {
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         use Relation::*;
         match value {
+            "eq" => Ok(Eq),
             "lt" => Ok(Lt),
             "lte" => Ok(Lte),
             "neq" => Ok(Neq),
