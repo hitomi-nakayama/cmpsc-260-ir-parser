@@ -43,6 +43,43 @@ impl Instruction {
             | Instruction::Store(..) => None
         }
     }
+    /**
+     * Return all values from rhs. Variables are promoted to Value.
+     */
+    pub fn rhs_values(&self) -> Vec<Value> {
+        match self {
+            Instruction::Copy(_, rhs)
+            | Instruction::Ret(rhs)
+                => vec![rhs.clone()],
+
+            Instruction::AddrOf(_, rhs)
+            | Instruction::Branch(rhs, _, _)
+            | Instruction::Load(_, rhs) => vec![Value::Variable(rhs.clone())],
+
+            Instruction::Arith(_, _, rhs0, rhs1)
+            | Instruction::Cmp(_, _, rhs0, rhs1)
+            | Instruction::Gep(_, rhs0, rhs1, _)
+                => vec![rhs0.clone(), rhs1.clone()],
+
+            Instruction::Store(rhs0, rhs1)
+                => vec![Value::Variable(rhs0.clone()), rhs1.clone()],
+
+            Instruction::Call(_, _, rhs)
+            | Instruction::Phi(_, rhs) => rhs.clone(),
+
+            Instruction::ICall(_, func, rhs) => {
+                let mut result = rhs.clone();
+                result.insert(0, Value::Variable(func.clone()));
+                result
+            },
+
+            Instruction::Select(_, cond, t_v, f_v)
+                => vec![cond.clone(), t_v.clone(), f_v.clone()],
+
+            Instruction::Alloc(..)
+            | Instruction::Jump(..) => Vec::new()
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
