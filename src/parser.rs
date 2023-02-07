@@ -91,7 +91,7 @@ fn parse_instruction(tokens: &mut TokenReader) -> ParseResult<Instruction> {
     match first_token {
         "$branch" => {
             tokens.take();
-            let cond = take_variable(tokens)?;
+            let cond = take_value(tokens)?;
             let true_branch = take_block_name(tokens)?;
             let false_branch = take_block_name(tokens)?;
             Ok(Branch(cond, true_branch, false_branch))
@@ -419,6 +419,22 @@ $ret 0 }";
             "cmp1:int".try_into().unwrap(),
             "if.then".to_owned(),
             "if.end".to_owned()
+        );
+
+        let mut tokens = str_to_tokens(instruction);
+
+        let actual = parse_instruction(&mut tokens).unwrap();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_instruction_branch_const_cond() {
+        let instruction = "$branch 0 end end";
+        let expected = Instruction::Branch(
+            "0".try_into().unwrap(),
+            "end".to_owned(),
+            "end".to_owned()
         );
 
         let mut tokens = str_to_tokens(instruction);

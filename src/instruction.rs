@@ -19,7 +19,7 @@ pub enum Instruction {
     AddrOf(Variable, Variable),
     Gep(Variable, Value, Value, VariableName),
     Jump(BasicBlockName),
-    Branch(Variable, BasicBlockName, BasicBlockName),
+    Branch(Value, BasicBlockName, BasicBlockName),
 }
 
 impl Instruction {
@@ -48,12 +48,12 @@ impl Instruction {
      */
     pub fn rhs_values(&self) -> Vec<Value> {
         match self {
-            Instruction::Copy(_, rhs)
+            Instruction::Branch(rhs, _, _)
+            | Instruction::Copy(_, rhs)
             | Instruction::Ret(rhs)
                 => vec![rhs.clone()],
 
             Instruction::AddrOf(_, rhs)
-            | Instruction::Branch(rhs, _, _)
             | Instruction::Load(_, rhs) => vec![Value::Variable(rhs.clone())],
 
             Instruction::Arith(_, _, rhs0, rhs1)
