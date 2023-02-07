@@ -13,7 +13,7 @@ use crate::text::{TokenReader};
 pub fn parse(tokens: &mut TokenReader) -> ParseResult<Program> {
     let mut structs = HashMap::new();
     let mut functions = HashMap::new();
-    while !(tokens.empty()) {
+    while !(tokens.is_empty()) {
         match tokens.peek().unwrap() {
             "struct" => {
                 let struct_ = parse_struct(tokens)?;
@@ -33,17 +33,17 @@ pub fn parse(tokens: &mut TokenReader) -> ParseResult<Program> {
 
 fn parse_struct(tokens: &mut TokenReader) -> ParseResult<Struct> {
     let line_number = tokens.line_number();
-    tokens.expect("struct")?;
+    expect(tokens, "struct")?;
     let struct_name = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a struct name here.".to_string()))?;
-    tokens.expect("{")?;
+    expect(tokens, "{")?;
 
     let mut fields = HashMap::new();
     while !(is_end_of_struct(tokens)?) {
-        let field_name = take_label(tokens)?;
-        let field_type = take_type_name(tokens)?;
+        let field_name = parse_label(tokens)?;
+        let field_type = parse_type_name(tokens)?;
         fields.insert(field_name, field_type);
     }
-    tokens.expect("}")?;
+    expect(tokens, "}")?;
 
     Ok(Struct{
         name: struct_name,
@@ -66,15 +66,15 @@ fn parse_function(tokens: &mut TokenReader) -> ParseResult<Function> {
 fn parse_function_header(tokens: &mut TokenReader) -> ParseResult<(String, Vec<Variable>, TypeName)> {
     let line_number = tokens.line_number();
 
-    tokens.expect("function")?;
+    expect(tokens, "function")?;
     let function_name = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a function name here.".to_string()))?;
     let params = parse_function_params(tokens)?;
-    tokens.expect("->")?;
+    expect(tokens, "->")?;
 
     let return_type = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a return type here.".to_string()))?;
     let return_type = TypeName::try_from(return_type.as_str())?;
 
-    tokens.expect("{")?;
+    expect(tokens, "{")?;
 
     Ok((function_name, params, return_type))
 }
@@ -83,7 +83,7 @@ fn parse_basic_blocks(tokens: &mut TokenReader) -> ParseResult<HashMap<BasicBloc
     let mut basic_blocks = HashMap::new();
 
     loop {
-        let label = take_label(tokens)?;
+        let label = parse_label(tokens)?;
         let mut block = BasicBlock {
             name: label,
             instructions: Vec::new()
@@ -94,7 +94,7 @@ fn parse_basic_blocks(tokens: &mut TokenReader) -> ParseResult<HashMap<BasicBloc
         }
         basic_blocks.insert(block.name.clone(), block);
         if is_end_of_function(tokens)? {
-            tokens.expect("}")?;
+            expect(tokens, "}")?;
             break;
         }
     }
@@ -102,7 +102,7 @@ fn parse_basic_blocks(tokens: &mut TokenReader) -> ParseResult<HashMap<BasicBloc
 }
 
 fn is_end_of_basic_block(tokens: &mut TokenReader) -> ParseResult<bool> {
-    Ok(is_end_of_function(tokens)? || is_label(tokens)?)
+    Ok(is_end_of_function(tokens)? || is_label(tokens))
 }
 
 fn is_end_of_function(tokens: &mut TokenReader) -> ParseResult<bool> {
@@ -120,49 +120,24 @@ fn is_peek_close_brace(tokens: &mut TokenReader, error_msg: &str) -> ParseResult
     Ok(next_token == "}")
 }
 
-
 fn parse_instruction(tokens: &mut TokenReader) -> ParseResult<Instruction> {
-    use Instruction::*;
-
-    let first_token = tokens.peek().ok_or(ParseError::Generic("Expected an instruction here.".into()))?;
-    match first_token {
-        "$branch" => {
-            tokens.take();
-            let cond = take_value(tokens)?;
-            let true_branch = take_block_name(tokens)?;
-            let false_branch = take_block_name(tokens)?;
-            Ok(Branch(cond, true_branch, false_branch))
-        },
-        "$jump" => {
-            tokens.take();
-            let label = take_block_name(tokens)?;
-            Ok(Jump(label))
-        },
-        "$ret" => {
-            tokens.take();
-            let value = take_value(tokens)?;
-            Ok(Ret(value))
-        },
-        "$store" => {
-            tokens.take();
-            let dest = take_variable(tokens)?;
-            let src = take_value(tokens)?;
-            Ok(Store(dest, src))
-        },
-        _ => parse_assign_instruction(tokens)
+    if is_variable(tokens) {
+        parse_assign_instruction(tokens)
+    } else {
+        parse_non_assign_instruction(tokens)
     }
 }
 
 fn parse_assign_instruction(tokens: &mut TokenReader) -> ParseResult<Instruction> {
     use Instruction::*;
 
-    let lhs = take_variable(tokens)?;
-    tokens.expect("=")?;
+    let lhs = parse_variable(tokens)?;
+    expect(tokens, "=")?;
 
     let opcode = tokens.take().ok_or(ParseError::Generic("Expected an instruction here.".into()))?;
     match opcode.as_str() {
         "$addrof" => {
-            let rhs = take_variable(tokens)?;
+            let rhs = parse_variable(tokens)?;
             Ok(AddrOf(lhs, rhs))
         },
         "$alloc" => {
@@ -172,40 +147,40 @@ fn parse_assign_instruction(tokens: &mut TokenReader) -> ParseResult<Instruction
             let op = tokens.take().ok_or(ParseError::Generic("Expected an arithmetic operation here.".into()))?;
             let op = op.as_str().try_into()?;
 
-            let rhs1 = take_value(tokens)?;
-            let rhs2 = take_value(tokens)?;
+            let rhs1 = parse_value(tokens)?;
+            let rhs2 = parse_value(tokens)?;
             Ok(Arith(op, lhs, rhs1, rhs2))
         },
         "$cmp" => {
             let relation = tokens.take().ok_or(ParseError::Generic("Expected a comparison relation here.".into()))?;
             let relation = relation.as_str().try_into()?;
 
-            let rhs1 = take_value(tokens)?;
-            let rhs2 = take_value(tokens)?;
+            let rhs1 = parse_value(tokens)?;
+            let rhs2 = parse_value(tokens)?;
             Ok(Cmp(relation, lhs, rhs1, rhs2))
         },
         "$call" => {
-            let label = take_block_name(tokens)?;
+            let label = parse_block_name(tokens)?;
             let args = parse_value_list(tokens)?;
             Ok(Call(lhs, label, args))
         },
         "$copy" => {
-            let rhs = take_value(tokens)?;
+            let rhs = parse_value(tokens)?;
             Ok(Copy(lhs, rhs))
         },
         "$gep" => {
-            let rhs1 = take_value(tokens)?;
-            let rhs2 = take_value(tokens)?;
+            let rhs1 = parse_value(tokens)?;
+            let rhs2 = parse_value(tokens)?;
             let rhs3 = tokens.take().ok_or(ParseError::Generic("Expected a value here.".into()))?;
             Ok(Gep(lhs, rhs1, rhs2, rhs3))
         },
         "$icall" => {
-            let func_ptr = take_variable(tokens)?;
+            let func_ptr = parse_variable(tokens)?;
             let args = parse_value_list(tokens)?;
             Ok(ICall(lhs, func_ptr, args))
         },
         "$load" => {
-            let rhs = take_variable(tokens)?;
+            let rhs = parse_variable(tokens)?;
             Ok(Load(lhs, rhs))
         },
         "$phi" => {
@@ -213,12 +188,41 @@ fn parse_assign_instruction(tokens: &mut TokenReader) -> ParseResult<Instruction
             Ok(Phi(lhs, args))
         }
         "$select" => {
-            let cond = take_value(tokens)?;
-            let true_value = take_value(tokens)?;
-            let false_value = take_value(tokens)?;
+            let cond = parse_value(tokens)?;
+            let true_value = parse_value(tokens)?;
+            let false_value = parse_value(tokens)?;
             Ok(Select(lhs, cond, true_value, false_value))
         }
         x => Err(ParseError::Generic(format!("Unknown instruction: {x}")))
+    }
+}
+
+fn parse_non_assign_instruction(tokens: &mut TokenReader) -> ParseResult<Instruction> {
+    use Instruction::*;
+
+    let first_token = tokens.take()
+        .ok_or(ParseError::Expected(tokens.line_number(), "Expected an instruction here.".into()))?;
+    match first_token.as_str() {
+        "$branch" => {
+            let cond = parse_value(tokens)?;
+            let true_branch = parse_block_name(tokens)?;
+            let false_branch = parse_block_name(tokens)?;
+            Ok(Branch(cond, true_branch, false_branch))
+        },
+        "$jump" => {
+            let label = parse_block_name(tokens)?;
+            Ok(Jump(label))
+        },
+        "$ret" => {
+            let value = parse_value(tokens)?;
+            Ok(Ret(value))
+        },
+        "$store" => {
+            let dest = parse_variable(tokens)?;
+            let src = parse_value(tokens)?;
+            Ok(Store(dest, src))
+        },
+        _ => Err(ParseError::ExpectedFound(tokens.line_number(), "an instruction".to_owned(), first_token.to_owned()))
     }
 }
 
@@ -239,7 +243,7 @@ fn parse_value_list(tokens: &mut TokenReader) -> ParseResult<Vec<Value>> {
     let line_number = tokens.line_number();
     let mut params: Vec<Value> = Vec::new();
 
-    tokens.expect("(")?;
+    expect(tokens, "(")?;
 
     if tokens.peek().ok_or(ParseError::Expected(line_number, ")".to_string()))? == ")" {
         tokens.take();
@@ -247,62 +251,80 @@ fn parse_value_list(tokens: &mut TokenReader) -> ParseResult<Vec<Value>> {
     }
 
     loop {
-        let variable = take_value(tokens)?;
+        let variable = parse_value(tokens)?;
         params.push(variable);
 
         if tokens.peek().ok_or(ParseError::Expected(line_number, ")".to_string()))? == ")" {
             tokens.take();
             return Ok(params);
         }
-        tokens.expect(",")?;
+        expect(tokens, ",")?;
     }
 }
 
-fn is_label(tokens: &mut TokenReader) -> ParseResult<bool> {
-    let label_error = ParseError::Expected(
-        tokens.line_number(),
-        "Expected a label here.".to_string());
-    let label = tokens.peek().ok_or(label_error)?;
-    Ok(label.strip_suffix(':').is_some())
+fn is_variable(tokens: &mut TokenReader) -> bool {
+    tokens.peek_n(1).map_or(false, |x| x == ":")
 }
 
-fn take_label(tokens: &mut TokenReader) -> ParseResult<BasicBlockName> {
-    let label = peek_label(tokens)?;
-    tokens.take();
+fn is_label(tokens: &mut TokenReader) -> bool {
+    tokens.peek_n(1).map_or(false, |x| x == ":")
+        // a hack to filter out the lhs of instructions
+        && tokens.peek_n(3).map_or(false, |x| x != "=")
+}
+
+fn parse_label(tokens: &mut TokenReader) -> ParseResult<BasicBlockName> {
+    let err = ParseError::Generic("Expected a label here.".to_string());
+    let label = tokens.take().ok_or(err.clone())?;
+    expect(tokens, ":")?;
     Ok(label)
 }
 
-fn peek_label(tokens: &mut TokenReader) -> ParseResult<BasicBlockName> {
-    let line_number = tokens.line_number();
-    let label_error = ParseError::Expected(line_number, "Expected a label here.".to_string());
-    let label = tokens.peek().ok_or(label_error.clone())?;
-    Ok(label.strip_suffix(':').ok_or(label_error.clone())?.to_owned())
-}
-
-fn take_block_name(tokens: &mut TokenReader) -> ParseResult<BasicBlockName> {
-    let label = tokens.take().ok_or(ParseError::Generic("Expected a label here.".to_string()))?;
-    Ok(label)
-}
-
-fn take_value(tokens: &mut TokenReader) -> ParseResult<Value> {
+fn parse_value(tokens: &mut TokenReader) -> ParseResult<Value> {
     let line_number = tokens.line_number();
 
-    let token = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a value here.".to_string()))?;
-
-    Value::try_from(token.as_str())
+    let first_token = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a value here.".to_string()))?;
+    let next_token = tokens.peek();
+    if next_token == Some(":") {
+        tokens.take();
+        let type_name = parse_type_name(tokens)?;
+        Ok(Value::Variable(Variable::new(first_token, type_name)))
+    } else {
+        Ok(Value::try_from(first_token.as_str())?)
+    }
 }
 
-fn take_variable(tokens: &mut TokenReader) -> ParseResult<Variable> {
+fn parse_variable(tokens: &mut TokenReader) -> ParseResult<Variable> {
     let line_number = tokens.line_number();
 
-    let token = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a parameter here.".to_string()))?;
-    Variable::try_from(token.as_str())
+    let token = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a variable name here.".to_string()))?;
+    expect(tokens, ":")?;
+    let type_name = parse_type_name(tokens)?;
+    Ok(Variable::new(token, type_name))
 }
 
-fn take_type_name(tokens: &mut TokenReader) -> ParseResult<TypeName> {
+fn parse_type_name(tokens: &mut TokenReader) -> ParseResult<TypeName> {
     let line_number = tokens.line_number();
     let token = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a type name here.".to_string()))?;
     TypeName::try_from(token.as_str())
+}
+
+fn parse_block_name(tokens: &mut TokenReader) -> ParseResult<BasicBlockName> {
+    let line_number = tokens.line_number();
+    let token = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a block name here.".to_string()))?;
+    Ok(token)
+}
+
+pub fn expect(tokens: &mut TokenReader, expected: &str) -> ParseResult<()> {
+    let line_number = tokens.line_number();
+    if let Some(actual) = tokens.take() {
+        if expected != actual {
+            Err(ParseError::ExpectedFound(line_number, expected.to_string(), actual))
+        } else {
+            Ok(())
+        }
+    } else {
+        Err(ParseError::Expected(line_number, expected.to_string()))
+    }
 }
 
 #[cfg(test)]
@@ -656,8 +678,7 @@ $ret 0 }";
 
     #[test]
     fn parse_basic_block_0() {
-        let basic_block = "
-entry:
+        let basic_block = "entry:
     call:int = $call input()
     x:int = $copy call:int
     $ret 0
@@ -760,6 +781,24 @@ if.else:
         let mut tokens = str_to_tokens("struct bar {
             a: int
             b: int
+        }");
+        let expected = Struct{
+            name: "bar".to_owned(),
+            fields: map![
+                "a".to_owned() => "int".try_into().unwrap(),
+                "b".to_owned() => "int".try_into().unwrap()
+            ]
+        };
+
+        let actual = parse_struct(&mut tokens).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_struct_no_spaces() {
+        let mut tokens = str_to_tokens("struct bar {
+            a:int
+            b:int
         }");
         let expected = Struct{
             name: "bar".to_owned(),

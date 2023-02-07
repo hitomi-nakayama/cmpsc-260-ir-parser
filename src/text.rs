@@ -1,4 +1,4 @@
-use std::{io::BufRead, mem};
+use std::{io::BufRead, mem, collections::VecDeque};
 
 use crate::parse_result::{ParseError, ParseResult};
 
@@ -55,24 +55,22 @@ impl<'a> SourceReader<'a> {
 }
 
 pub struct TokenReader<'a> {
-    is_empty: bool,
-    line_number_: usize,
-    index: usize,
-    tokens: Vec<String>,
+    out_of_lines: bool,
+    last_read_line_number: usize,
+    tokens: VecDeque<(String, usize)>,
     source_reader: Option<SourceReader<'a>>
 }
 
 impl<'a> TokenReader<'a> {
     pub fn new(source_reader: SourceReader<'a>) -> Self {
-        let mut cursor = TokenReader {
-            is_empty: false,
-            source_reader: Some(source_reader),
-            index: 0,
-            line_number_: 0,
-            tokens: Vec::new()
+        let mut tokens = TokenReader {
+            out_of_lines: false,
+            last_read_line_number: 0,
+            tokens: VecDeque::new(),
+            source_reader: Some(source_reader)
         };
-        cursor.read_next_line();
-        cursor
+        tokens.buffer(1);
+        tokens
     }
 
     pub fn from_buf_read<T: BufRead + 'a>(buf_read: T) -> Self {
@@ -81,74 +79,54 @@ impl<'a> TokenReader<'a> {
     }
 
     pub fn from_tokens(tokens: Vec<String>) -> Self {
-        TokenReader {
-            is_empty: false,
+        let tokens: VecDeque<_> = tokens.into_iter().map(|x| (x, 1 as usize)).collect();
+        let tokens = TokenReader {
+            out_of_lines: true,
+            last_read_line_number: 0,
             source_reader: None,
-            index: 0,
-            line_number_: 0,
-            tokens: tokens
-        }
+            tokens
+        };
+        tokens
     }
 
-    pub fn empty(&self) -> bool {
-        self.is_empty
+    pub fn is_empty(&self) -> bool {
+        self.out_of_lines && self.tokens.is_empty()
     }
 
     pub fn peek(&self) -> Option<&str> {
-        self.current_token()
+        self.tokens.front().map(|x| x.0.as_str())
+    }
+
+    pub fn peek_n(&mut self, n: usize) -> Option<&str> {
+        self.buffer(n);
+        self.tokens.get(n).map(|x| x.0.as_str())
     }
 
     pub fn line_number(&self) -> usize {
-        self.line_number_
+        self.tokens.front().map(|x| x.1).unwrap_or(self.last_read_line_number)
     }
 
     pub fn take(&mut self) -> Option<String> {
-        let token = self.current_token()?.to_owned();
-        self.advance_token();
-        Some(token)
+        self.buffer(1);
+        let result = self.tokens.pop_front().map(|x| x.0.to_owned());
+        self.buffer(1);
+        result
     }
 
-    pub fn expect(&mut self, expected: &str) -> ParseResult<()> {
-        let line_number = self.line_number();
-        if let Some(actual) = self.take() {
-            if expected != actual {
-                Err(ParseError::ExpectedFound(line_number, expected.to_string(), actual))
+    fn buffer(&mut self, count: usize) {
+        while !self.out_of_lines && self.tokens.len() < count {
+            if let Some(source_reader) = &mut self.source_reader {
+                if let Some(line) = source_reader.read_line() {
+                    self.last_read_line_number = line.line_number;
+                    let tokens = line.tokens.into_iter().map(|x| (x, line.line_number));
+                    self.tokens.extend(tokens);
+                } else {
+                    self.out_of_lines = true;
+                }
             } else {
-                Ok(())
+                self.out_of_lines = true;
             }
-        } else {
-            Err(ParseError::Expected(line_number, expected.to_string()))
         }
-    }
-
-    fn current_token(&self) -> Option<&str> {
-        if !(self.empty()) {
-            Some(self.tokens.get(self.index).unwrap().as_str())
-        } else {
-            None
-        }
-    }
-
-    fn advance_token(&mut self) {
-        self.index += 1;
-        if self.index >= self.tokens.len() {
-            self.read_next_line();
-        }
-    }
-
-    fn read_next_line(&mut self) {
-        if let Some(source_reader) = &mut self.source_reader {
-            if let Some(line) = source_reader.read_line() {
-                self.line_number_ = line.line_number;
-                self.tokens = line.tokens;
-                self.index = 0;
-            } else {
-                self.is_empty = true;
-            }
-        } else {
-            self.is_empty = true;
-        }
-
     }
 }
 
@@ -165,7 +143,7 @@ fn tokenize_line(input: &str) -> Vec<String> {
         } else if c == '-' && input.len() > i + 1 && input.chars().nth(i + 1).unwrap() == '>' {
             ignore_next = true;
             tokens.push("->".to_string());
-        } else if c.is_whitespace() || c == ',' || c == '(' || c == ')' || c == '{' || c == '}' || c == '=' {
+        } else if c.is_whitespace() || c == ',' || c == '(' || c == ')' || c == '{' || c == '}' || c == '=' || c == ':' {
             if let Some(start) = word_start {
                 tokens.push(input[start..i].to_string());
                 word_start = None;
@@ -193,19 +171,19 @@ mod tests {
     #[test]
     fn tokenize_line_statement() {
         let tokens = tokenize_line("div:int = $arith div i2:int i3:int");
-        assert_eq!(tokens, vec!["div:int", "=", "$arith", "div", "i2:int", "i3:int"]);
+        assert_eq!(tokens, vec!["div", ":", "int", "=", "$arith", "div", "i2", ":", "int", "i3", ":", "int"]);
     }
 
     #[test]
     fn tokenize_line_function_call() {
         let tokens = tokenize_line("call3:int = $call input()");
-        assert_eq!(tokens, vec!["call3:int", "=", "$call", "input", "(", ")"]);
+        assert_eq!(tokens, vec!["call3", ":", "int", "=", "$call", "input", "(", ")"]);
     }
 
     #[test]
     fn tokenize_line_function_declaration() {
         let tokens = tokenize_line("function construct(value:int, left:TreeNode*) -> TreeNode* {");
-        assert_eq!(tokens, vec!["function", "construct", "(", "value:int", ",", "left:TreeNode*", ")", "->", "TreeNode*", "{"]);
+        assert_eq!(tokens, vec!["function", "construct", "(", "value", ":", "int", ",", "left", ":", "TreeNode*", ")", "->", "TreeNode*", "{"]);
     }
 
     #[test]

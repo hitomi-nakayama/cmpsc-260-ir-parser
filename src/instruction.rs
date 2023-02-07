@@ -174,6 +174,12 @@ pub struct Variable {
     pub type_name: TypeName
 }
 
+impl Variable {
+    pub fn new(name: VariableName, type_name: TypeName) -> Self {
+        Variable{name, type_name}
+    }
+}
+
 impl TryFrom<&str> for Variable {
     type Error = ParseError;
 
