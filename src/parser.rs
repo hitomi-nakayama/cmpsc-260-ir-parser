@@ -43,6 +43,7 @@ fn parse_struct(tokens: &mut TokenReader) -> ParseResult<Struct> {
         let field_type = take_type_name(tokens)?;
         fields.insert(field_name, field_type);
     }
+    tokens.expect("}")?;
 
     Ok(Struct{
         name: struct_name,
@@ -769,6 +770,46 @@ if.else:
         };
 
         let actual = parse_struct(&mut tokens).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_struct_and_function() {
+        let mut tokens = str_to_tokens("struct bar {
+            a: int
+        }
+        function main() -> int {
+        entry:
+            $ret 0
+        }");
+        let expected = Program{
+            structs: map![
+                "bar".to_owned() => Struct{
+                    name: "bar".to_owned(),
+                    fields: map![
+                        "a".to_owned() => "int".try_into().unwrap()
+                    ]
+                }
+            ],
+            functions: map![
+                "main".to_owned() => Function {
+                    name: "main".to_owned(),
+                    return_type: "int".try_into().unwrap(),
+                    params: vec![],
+                    basic_blocks: map![
+                        "entry".to_owned() => BasicBlock{
+                            name: "entry".to_owned(),
+                            instructions: vec![
+                                Instruction::Ret(
+                                    Value::Constant(0)
+                                )
+                            ]
+                        }
+                    ]
+                }
+            ]
+        };
+        let actual = parse(&mut tokens).unwrap();
         assert_eq!(expected, actual);
     }
 
