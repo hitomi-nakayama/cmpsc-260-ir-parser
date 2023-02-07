@@ -1,10 +1,18 @@
-use std::collections::HashMap;
+use std::{collections::HashMap};
 
-use crate::instruction::{BasicBlockName, FunctionName, Instruction, TypeName, Variable};
+use crate::instruction::{BasicBlockName, FieldName, FunctionName, Instruction,
+    StructName, TypeName, Variable};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Program {
-    pub functions: HashMap<FunctionName, Function>
+    pub functions: HashMap<FunctionName, Function>,
+    pub structs: HashMap<StructName, Struct>
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Struct {
+    pub name: String,
+    pub fields: HashMap<FieldName, TypeName>
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

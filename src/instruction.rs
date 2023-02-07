@@ -1,5 +1,7 @@
+pub type FieldName = String;
 pub type FunctionName = String;
 pub type BasicBlockName = String;
+pub type StructName = String;
 
 use crate::parse_result::{ParseResult, ParseError};
 
@@ -17,7 +19,7 @@ pub enum Instruction {
     Ret(Value),
     Alloc(Variable),
     AddrOf(Variable, Variable),
-    Gep(Variable, Value, Value, VariableName),
+    Gep(Variable, Value, Value, FieldName),
     Jump(BasicBlockName),
     Branch(Value, BasicBlockName, BasicBlockName),
 }

@@ -6,19 +6,48 @@ use crate::instruction::{BasicBlockName, Instruction, Operation, Relation,
     Value, Variable};
 
 use crate::parse_result::{ParseError, ParseResult};
-use crate::program::{BasicBlock, Function, Program};
+use crate::program::{BasicBlock, Function, Program, Struct};
 use crate::text::{TokenReader};
 
 
 pub fn parse(tokens: &mut TokenReader) -> ParseResult<Program> {
-    let mut ir = Program {
-        functions: HashMap::new()
-    };
+    let mut structs = HashMap::new();
+    let mut functions = HashMap::new();
     while !(tokens.empty()) {
-        let function = parse_function(tokens)?;
-        ir.functions.insert(function.name.clone(), function);
+        match tokens.peek().unwrap() {
+            "struct" => {
+                let struct_ = parse_struct(tokens)?;
+                structs.insert(struct_.name.clone(), struct_);
+            },
+            "function" => {
+                let function = parse_function(tokens)?;
+                functions.insert(function.name.clone(), function);
+            },
+            _ => {
+                return Err(ParseError::Expected(tokens.line_number(), "Expected a struct or function here.".to_string()))
+            }
+        }
     }
-    Ok(ir)
+    Ok(Program{structs, functions})
+}
+
+fn parse_struct(tokens: &mut TokenReader) -> ParseResult<Struct> {
+    let line_number = tokens.line_number();
+    tokens.expect("struct")?;
+    let struct_name = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a struct name here.".to_string()))?;
+    tokens.expect("{")?;
+
+    let mut fields = HashMap::new();
+    while !(is_end_of_struct(tokens)?) {
+        let field_name = take_label(tokens)?;
+        let field_type = take_type_name(tokens)?;
+        fields.insert(field_name, field_type);
+    }
+
+    Ok(Struct{
+        name: struct_name,
+        fields
+    })
 }
 
 fn parse_function(tokens: &mut TokenReader) -> ParseResult<Function> {
@@ -76,13 +105,20 @@ fn is_end_of_basic_block(tokens: &mut TokenReader) -> ParseResult<bool> {
 }
 
 fn is_end_of_function(tokens: &mut TokenReader) -> ParseResult<bool> {
-    let line_number = tokens.line_number();
-    let next_token = tokens.peek().ok_or(ParseError::Expected(line_number,
-        "Expected an instruction, basic block label, or '}' here.".to_string()))?;
-
-    let end_of_block = next_token == "}";
-    Ok(end_of_block)
+    is_peek_close_brace(tokens, "Expected an instruction, basic block label, or '}' here.")
 }
+
+fn is_end_of_struct(tokens: &mut TokenReader) -> ParseResult<bool> {
+    is_peek_close_brace(tokens, "Expected a field declaration, or '}' here.")
+}
+
+fn is_peek_close_brace(tokens: &mut TokenReader, error_msg: &str) -> ParseResult<bool> {
+    let line_number = tokens.line_number();
+    let next_token = tokens.peek()
+        .ok_or(ParseError::Expected(line_number, error_msg.to_owned()))?;
+    Ok(next_token == "}")
+}
+
 
 fn parse_instruction(tokens: &mut TokenReader) -> ParseResult<Instruction> {
     use Instruction::*;
@@ -260,6 +296,12 @@ fn take_variable(tokens: &mut TokenReader) -> ParseResult<Variable> {
 
     let token = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a parameter here.".to_string()))?;
     Variable::try_from(token.as_str())
+}
+
+fn take_type_name(tokens: &mut TokenReader) -> ParseResult<TypeName> {
+    let line_number = tokens.line_number();
+    let token = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a type name here.".to_string()))?;
+    TypeName::try_from(token.as_str())
 }
 
 #[cfg(test)]
@@ -712,10 +754,25 @@ if.else:
         assert_eq!(expected, actual);
     }
 
+    #[test]
+    fn parse_struct_0() {
+        let mut tokens = str_to_tokens("struct bar {
+            a: int
+            b: int
+        }");
+        let expected = Struct{
+            name: "bar".to_owned(),
+            fields: map![
+                "a".to_owned() => "int".try_into().unwrap(),
+                "b".to_owned() => "int".try_into().unwrap()
+            ]
+        };
+
+        let actual = parse_struct(&mut tokens).unwrap();
+        assert_eq!(expected, actual);
+    }
 
     fn str_to_tokens(input: &str) -> TokenReader {
-        let tokens = TokenReader::from_buf_read(input.as_bytes());
-
-        return tokens;
+        TokenReader::from_buf_read(input.as_bytes())
     }
 }
