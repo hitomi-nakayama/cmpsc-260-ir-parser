@@ -433,7 +433,6 @@ $ret 0 }";
             ]
         };
         let actual = parse_function(&mut reader).unwrap();
-        println!("{:#?}", actual);
         assert_eq!(expected, actual);
     }
 

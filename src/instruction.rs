@@ -205,9 +205,7 @@ impl TypeName {
         let base_type = &value[..value.len() - indirection];
 
         let base_type = if let Some((return_type, rest)) = base_type.split_once("[") {
-            println!("return_type: {}", return_type);
             let return_type = Box::new(return_type.try_into()?);
-            println!("rest: {}", rest);
             let args = Self::get_func_arg_types(rest)?;
             BaseType::FunctionPointer(return_type, args)
         } else { // basic type
@@ -227,7 +225,6 @@ impl TypeName {
         for (i, c) in s.chars().enumerate() {
             if (c == ',' || c == ']') && bracket_level == 0 {
                 let type_name = &s[word_start..i];
-                println!("type_name: {}", type_name);
                 let type_name = type_name.try_into()?;
                 types.push(type_name);
                 word_start = i + 1;
