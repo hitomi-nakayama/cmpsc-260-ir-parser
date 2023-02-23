@@ -293,7 +293,7 @@ fn parse_value(tokens: &mut TokenReader) -> ParseResult<Value> {
     }
 }
 
-fn parse_variable(tokens: &mut TokenReader) -> ParseResult<Variable> {
+pub fn parse_variable(tokens: &mut TokenReader) -> ParseResult<Variable> {
     let line_number = tokens.line_number();
 
     let token = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a variable name here.".to_string()))?;
