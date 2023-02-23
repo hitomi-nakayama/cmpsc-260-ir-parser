@@ -154,6 +154,17 @@ impl Value {
     }
 }
 
+impl From<Variable> for Value {
+    fn from(var: Variable) -> Self {
+        Value::Variable(var)
+    }
+}
+impl From<i32> for Value {
+    fn from(constant: i32) -> Self {
+        Value::Constant(constant)
+    }
+}
+
 impl TryFrom<&str> for Value {
     type Error = ParseError;
 
