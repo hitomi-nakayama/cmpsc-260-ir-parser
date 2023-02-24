@@ -676,6 +676,36 @@ $ret 0 }";
     }
 
     #[test]
+    fn parse_instruction_gep_var_offset() {
+        let instruction = "arrayidx:foo* = $gep call:foo* idxprom:int";
+        let expected = Instruction::Gep(
+            "arrayidx:foo*".try_into().unwrap(),
+            "call:foo*".try_into().unwrap(),
+            "0".try_into().unwrap(),
+            "idxprom:int".try_into().into()
+        );
+
+        let mut tokens = str_to_tokens(instruction);
+        let actual = parse_instruction(&mut tokens).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_instruction_gep_const_offset() {
+        let instruction = "arrayidx5:foo* = $gep i7:foo* 13";
+        // let expected = Instruction::Gep(
+        //     "arrayidx:foo*".try_into().unwrap(),
+        //     "call:foo*".try_into().unwrap(),
+        //     "0".try_into().unwrap(),
+        //     "idxprom:int".try_into().into()
+        // );
+
+        let mut tokens = str_to_tokens(instruction);
+        let actual = parse_instruction(&mut tokens).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
     fn parse_basic_block_0() {
         let basic_block = "entry:
     call:int = $call input()
