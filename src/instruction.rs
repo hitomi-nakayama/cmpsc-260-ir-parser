@@ -19,7 +19,7 @@ pub enum Instruction {
     Ret(Value),
     Alloc(Variable),
     AddrOf(Variable, Variable),
-    Gep(Variable, Value, Value, FieldName),
+    Gep(Variable, Value, Value, Option<FieldName>),
     Jump(BasicBlockName),
     Branch(Value, BasicBlockName, BasicBlockName),
 }

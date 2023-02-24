@@ -171,7 +171,12 @@ fn parse_assign_instruction(tokens: &mut TokenReader) -> ParseResult<Instruction
         "$gep" => {
             let rhs1 = parse_value(tokens)?;
             let rhs2 = parse_value(tokens)?;
-            let rhs3 = tokens.take().ok_or(ParseError::Generic("Expected a value here.".into()))?;
+            let rhs3 = if is_end_of_gep(tokens)? {
+                None
+            } else {
+                Some(tokens.take()
+                    .ok_or(ParseError::Generic("Expected a field name here.".into()))?)
+            };
             Ok(Gep(lhs, rhs1, rhs2, rhs3))
         },
         "$icall" => {
@@ -195,6 +200,10 @@ fn parse_assign_instruction(tokens: &mut TokenReader) -> ParseResult<Instruction
         }
         x => Err(ParseError::Generic(format!("Unknown instruction: {x}")))
     }
+}
+
+fn is_end_of_gep(tokens: &mut TokenReader) -> ParseResult<bool> {
+    Ok(is_variable(tokens) || is_opcode(tokens) || tokens.peek().is_none())
 }
 
 fn parse_non_assign_instruction(tokens: &mut TokenReader) -> ParseResult<Instruction> {
@@ -260,6 +269,10 @@ fn parse_value_list(tokens: &mut TokenReader) -> ParseResult<Vec<Value>> {
         }
         expect(tokens, ",")?;
     }
+}
+
+fn is_opcode(tokens: &mut TokenReader) -> bool {
+    tokens.peek_n(1).map_or(false, |x| x.starts_with("$"))
 }
 
 fn is_variable(tokens: &mut TokenReader) -> bool {
@@ -667,7 +680,7 @@ $ret 0 }";
             "a:foo*".try_into().unwrap(),
             "s.ptr:bar*".try_into().unwrap(),
             "0".try_into().unwrap(),
-            "a".to_owned()
+            Some("a".to_owned())
         );
 
         let mut tokens = str_to_tokens(instruction);
@@ -676,29 +689,14 @@ $ret 0 }";
     }
 
     #[test]
-    fn parse_instruction_gep_var_offset() {
+    fn parse_instruction_gep_no_field_name() {
         let instruction = "arrayidx:foo* = $gep call:foo* idxprom:int";
         let expected = Instruction::Gep(
             "arrayidx:foo*".try_into().unwrap(),
             "call:foo*".try_into().unwrap(),
-            "0".try_into().unwrap(),
-            "idxprom:int".try_into().into()
+            "idxprom:int".try_into().unwrap(),
+            None
         );
-
-        let mut tokens = str_to_tokens(instruction);
-        let actual = parse_instruction(&mut tokens).unwrap();
-        assert_eq!(expected, actual);
-    }
-
-    #[test]
-    fn parse_instruction_gep_const_offset() {
-        let instruction = "arrayidx5:foo* = $gep i7:foo* 13";
-        // let expected = Instruction::Gep(
-        //     "arrayidx:foo*".try_into().unwrap(),
-        //     "call:foo*".try_into().unwrap(),
-        //     "0".try_into().unwrap(),
-        //     "idxprom:int".try_into().into()
-        // );
 
         let mut tokens = str_to_tokens(instruction);
         let actual = parse_instruction(&mut tokens).unwrap();
