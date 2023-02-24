@@ -143,7 +143,7 @@ fn tokenize_line(input: &str) -> Vec<String> {
         } else if c == '-' && input.len() > i + 1 && input.chars().nth(i + 1).unwrap() == '>' {
             ignore_next = true;
             tokens.push("->".to_string());
-        } else if c.is_whitespace() || c == ',' || c == '(' || c == ')' || c == '{' || c == '}' || c == '=' || c == ':' {
+        } else if c.is_whitespace() || c == ',' || c == '(' || c == ')' || c == '{' || c == '}' || c == '=' || c == ':' || c == '[' || c == ']' {
             if let Some(start) = word_start {
                 tokens.push(input[start..i].to_string());
                 word_start = None;

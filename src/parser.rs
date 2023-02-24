@@ -572,6 +572,22 @@ $ret 0 }";
     }
 
     #[test]
+    fn parse_instruction_copy_func_ptr() {
+        let instruction = "i:int[int,int*]* = $copy @my_func:int[int,int*]*";
+        let expected = Instruction::Copy(
+            "i:int[int,int*]*".try_into().unwrap(),
+            "@my_func:int[int,int*]*".try_into().unwrap()
+        );
+
+        println!("{:?}", Variable::try_from("i:int[int,int*]*").unwrap());
+        println!("{:?}", Variable::try_from("@my_func:int[int,int*]*").unwrap());
+
+        let mut tokens = str_to_tokens(instruction);
+        let actual = parse_instruction(&mut tokens).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
     fn parse_instruction_load() {
         let instruction = "i:foo* = $load next3:foo**";
         let expected = Instruction::Load(
