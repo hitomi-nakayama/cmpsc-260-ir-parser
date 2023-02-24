@@ -3,6 +3,8 @@ pub type FunctionName = String;
 pub type BasicBlockName = String;
 pub type StructName = String;
 
+use std::fmt;
+
 use crate::parse_result::{ParseResult, ParseError};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -261,10 +263,38 @@ impl TryFrom<&str> for TypeName {
     }
 }
 
+impl fmt::Display for TypeName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,
+            "{}{}",
+            self.base_type,
+            String::from_utf8(vec![b'*'; self.indirection_level as usize]).unwrap()
+        )
+    }
+}
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum BaseType {
     VariableType(String),
     FunctionPointer(Box<TypeName>, Vec<TypeName>)
+}
+
+impl fmt::Display for BaseType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            BaseType::VariableType(s) => write!(f, "{}", s),
+            BaseType::FunctionPointer(return_type, args) => {
+                write!(f, "{}[", return_type)?;
+                for (i, arg) in args.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ",")?;
+                    }
+                    write!(f, "{}", arg)?;
+                }
+                write!(f, "]")
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -389,6 +419,31 @@ mod tests{
         };
 
         let actual = TypeName::try_from("int[int[int*]*]*").unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_type_name_to_string() {
+        // in C: int (*func_ptr)(int (*)(int*))
+        let ty = TypeName{
+            indirection_level: 1,
+            base_type: BaseType::FunctionPointer(
+                Box::new("int".try_into().unwrap()),
+                vec![
+                    TypeName{
+                        indirection_level: 1,
+                        base_type: BaseType::FunctionPointer(
+                            Box::new("int".try_into().unwrap()),
+                            vec![
+                                "int*".try_into().unwrap()
+                            ]
+                        )
+                    }
+                ]
+            )
+        };
+        let expected = "int[int[int*]*]*";
+        let actual = ty.to_string();
         assert_eq!(expected, actual);
     }
 
