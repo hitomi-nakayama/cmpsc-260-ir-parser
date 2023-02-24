@@ -272,7 +272,7 @@ fn parse_value_list(tokens: &mut TokenReader) -> ParseResult<Vec<Value>> {
 }
 
 fn is_opcode(tokens: &mut TokenReader) -> bool {
-    tokens.peek_n(1).map_or(false, |x| x.starts_with("$"))
+    tokens.peek().map_or(false, |x| x.starts_with("$"))
 }
 
 fn is_variable(tokens: &mut TokenReader) -> bool {
@@ -877,6 +877,13 @@ if.else:
         };
         let actual = parse(&mut tokens).unwrap();
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_is_opcode() {
+        let mut tokens = str_to_tokens("$ret");
+        let actual = is_opcode(&mut tokens);
+        assert!(actual);
     }
 
     fn str_to_tokens(input: &str) -> TokenReader {
