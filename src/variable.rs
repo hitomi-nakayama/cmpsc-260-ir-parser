@@ -1,7 +1,7 @@
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 
-use crate::create_token_reader;
+use crate::{create_token_reader, parse_variable};
 use crate::parse_result::{ParseError, ParseResult};
 use crate::parser::parse_type_name;
 
@@ -69,11 +69,13 @@ impl TryFrom<&str> for Variable {
     type Error = ParseError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if let Some((name, type_name)) = value.split_once(":") {
-            let type_name = type_name.try_into()?;
-            Ok(Variable{name: name.to_owned(), type_name: type_name})
+        let mut tokens = create_token_reader(value.as_bytes());
+        let variable = parse_variable(&mut tokens)?;
+
+        if !(tokens.is_empty()) {
+            Err(ParseError::Generic(format!("Invalid variable {}", value)))
         } else {
-            Err(ParseError::Generic(format!("Invalid variable name {}", value)))
+            Ok(variable)
         }
     }
 }
@@ -84,37 +86,17 @@ pub struct TypeName {
     pub base_type: BaseType
 }
 
-impl TypeName {
-    fn get_func_arg_types(s: &str) -> ParseResult<Vec<TypeName>> {
-        let mut types = Vec::new();
-        let mut bracket_level = 0;
-        let mut word_start = 0;
-        for (i, c) in s.chars().enumerate() {
-            if (c == ',' || c == ']') && bracket_level == 0 {
-                let type_name = &s[word_start..i];
-                let type_name = type_name.try_into()?;
-                types.push(type_name);
-                word_start = i + 1;
-            }
-            if c == '[' {
-                bracket_level += 1;
-            }
-            if c == ']' {
-                if bracket_level == 0 {
-                    return Ok(types)
-                }
-                bracket_level -= 1;
-            }
-        }
-        Err(ParseError::Generic(format!("Invalid function pointer arguments [{}", s)))
-    }
-}
-
 impl TryFrom<&str> for TypeName {
     type Error = ParseError;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let mut tokens = create_token_reader(value.as_bytes());
-        parse_type_name(&mut tokens)
+        let type_name = parse_type_name(&mut tokens)?;
+
+        if !(tokens.is_empty()) {
+            Err(ParseError::Generic(format!("Invalid type name {}", value)))
+        } else {
+            Ok(type_name)
+        }
     }
 }
 

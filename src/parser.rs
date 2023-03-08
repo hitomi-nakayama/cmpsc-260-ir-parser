@@ -248,26 +248,7 @@ fn parse_function_params(tokens: &mut TokenReader) -> ParseResult<Vec<Variable>>
 }
 
 fn parse_value_list(tokens: &mut TokenReader) -> ParseResult<Vec<Value>> {
-    let line_number = tokens.line_number();
-    let mut params: Vec<Value> = Vec::new();
-
-    expect(tokens, "(")?;
-
-    if tokens.peek().ok_or(ParseError::Expected(line_number, ")".to_string()))? == ")" {
-        tokens.take();
-        return Ok(params);
-    }
-
-    loop {
-        let variable = parse_value(tokens)?;
-        params.push(variable);
-
-        if tokens.peek().ok_or(ParseError::Expected(line_number, ")".to_string()))? == ")" {
-            tokens.take();
-            return Ok(params);
-        }
-        expect(tokens, ",")?;
-    }
+    parse_list(tokens, "(", ")", parse_value)
 }
 
 fn is_opcode(tokens: &mut TokenReader) -> bool {
@@ -319,21 +300,16 @@ pub fn parse_type_name(tokens: &mut TokenReader) -> Result<TypeName, ParseError>
 
     let base_type = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a type name here.".to_string()))?;
 
-    if tokens.peek() == Some("[") {
-        return Err(ParseError::Generic("Array types are not supported yet.".to_string()));
-    }
-
-
-    // let base_type = if let Some((return_type, rest)) = base_type.split_once("[") {
-    //     let return_type = Box::new(return_type.try_into()?);
-    //     let args = Self::get_func_arg_types(rest)?;
-    //     BaseType::FunctionPointer(return_type, args)
-    // } else { // basic type
-    //     if base_type.find(&['*', '[', ']']).is_some() {
-    //         return Err(ParseError::Generic(format!("Invalid type name {}", base_type)));
-    //     }
-    //     BaseType::VariableType(base_type.to_owned())
-    // };
+    let base_type = if tokens.peek() == Some("[") {
+        let args = parse_list(tokens, "[", "]", parse_type_name)?;
+        let return_type = Box::new(TypeName{
+            indirection_level: 0,
+            base_type: BaseType::VariableType(base_type.to_owned())
+        });
+        BaseType::FunctionPointer(return_type, args)
+    } else {
+        BaseType::VariableType(base_type)
+    };
 
     let mut indirection: usize = 0;
     while tokens.peek() == Some("*") {
@@ -343,8 +319,37 @@ pub fn parse_type_name(tokens: &mut TokenReader) -> Result<TypeName, ParseError>
 
     Ok(TypeName{
         indirection_level: indirection as u8,
-        base_type: BaseType::VariableType(base_type)
+        base_type
     })
+}
+
+
+fn parse_list<T, F>(tokens: &mut TokenReader, open: &str, close: &str,
+                    mut parse_fn: F) -> ParseResult<Vec<T>>
+        where F: FnMut(&mut TokenReader) -> ParseResult<T> {
+
+    let line_number = tokens.line_number();
+    let mut items: Vec<T> = Vec::new();
+
+    expect(tokens, open)?;
+
+    let next_token = tokens.peek().ok_or(ParseError::Expected(line_number, close.to_owned()))?;
+    if next_token == close {
+        tokens.take();
+        return Ok(items);
+    }
+
+    loop {
+        let item = parse_fn(tokens)?;
+        items.push(item);
+
+        let next_token = tokens.peek().ok_or(ParseError::Expected(line_number, close.to_owned()))?;
+        if next_token == close {
+            tokens.take();
+            return Ok(items);
+        }
+        expect(tokens, ",")?;
+    }
 }
 
 fn parse_block_name(tokens: &mut TokenReader) -> ParseResult<BasicBlockName> {
