@@ -58,6 +58,13 @@ impl BasicBlock {
     }
 }
 
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+struct InstructionLocation {
+    function_name: FunctionName,
+    basic_block_name: BasicBlockName,
+    instruction_index: usize, // index of instruction within basic block
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
