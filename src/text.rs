@@ -1,4 +1,4 @@
-use std::{io::BufRead, mem, collections::VecDeque};
+use std::io::BufRead;
 
 pub use tokenizer::TokenReader;
 

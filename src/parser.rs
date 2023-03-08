@@ -2,10 +2,8 @@ use std::collections::HashMap;
 
 use tokenizer::{TokenReader};
 
-use crate::instruction::TypeName;
-use crate::instruction::{BasicBlockName, Instruction,
-    Value, Variable};
-
+use crate::instruction::{BasicBlockName, Instruction};
+use crate::variable::{TypeName, Variable, Value};
 use crate::parse_result::{ParseError, ParseResult};
 use crate::program::{BasicBlock, Function, Program, Struct};
 

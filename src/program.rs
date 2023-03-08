@@ -1,7 +1,8 @@
 use std::{collections::HashMap};
 
 use crate::instruction::{BasicBlockName, FieldName, FunctionName, Instruction,
-    StructName, TypeName, Variable};
+    StructName};
+use crate::variable::{TypeName, Variable};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Program {
