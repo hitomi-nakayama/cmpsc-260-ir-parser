@@ -86,6 +86,30 @@ pub struct TypeName {
     pub base_type: BaseType
 }
 
+impl TypeName {
+    pub fn new(indirection_level: u8, base_type: BaseType) -> Self {
+        TypeName{indirection_level, base_type}
+    }
+
+    pub fn is_function_pointer(&self) -> bool {
+        match self.base_type {
+            BaseType::FunctionPointer(_, _) => true,
+            _ => false
+        }
+    }
+
+    pub fn is_variable_type(&self) -> bool {
+        match self.base_type {
+            BaseType::VariableType(_) => true,
+            _ => false
+        }
+    }
+
+    pub fn is_pointer(&self) -> bool {
+        self.indirection_level > 0
+    }
+}
+
 impl TryFrom<&str> for TypeName {
     type Error = ParseError;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
