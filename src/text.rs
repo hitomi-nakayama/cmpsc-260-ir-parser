@@ -2,7 +2,7 @@ use std::io::BufRead;
 
 pub use tokenizer::TokenReader;
 
-const SPECIAL_TOKENS: &'static [&'static str] = &["->", ",", "(", ")", "{", "}", "=", ":"];
+const SPECIAL_TOKENS: &'static [&'static str] = &["->", ",", "(", ")", "{", "}", "=", ":", "*", "[", "]"];
 
 pub fn create_token_reader<'a, T: BufRead + 'a>(reader: T) -> TokenReader<'a> {
     TokenReader::from_buf_read(reader, SPECIAL_TOKENS)

@@ -1,7 +1,9 @@
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 
+use crate::create_token_reader;
 use crate::parse_result::{ParseError, ParseResult};
+use crate::parser::parse_type_name;
 
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -83,24 +85,6 @@ pub struct TypeName {
 }
 
 impl TypeName {
-    fn parse_type(value: &str) -> Result<TypeName, ParseError> {
-        let indirection = value.chars().rev().take_while(|c| *c == '*').count();
-        let base_type = &value[..value.len() - indirection];
-
-        let base_type = if let Some((return_type, rest)) = base_type.split_once("[") {
-            let return_type = Box::new(return_type.try_into()?);
-            let args = Self::get_func_arg_types(rest)?;
-            BaseType::FunctionPointer(return_type, args)
-        } else { // basic type
-            if base_type.find(&['*', '[', ']']).is_some() {
-                return Err(ParseError::Generic(format!("Invalid type name {}", base_type)));
-            }
-            BaseType::VariableType(base_type.to_owned())
-        };
-
-        Ok(TypeName{indirection_level: indirection as u8, base_type})
-    }
-
     fn get_func_arg_types(s: &str) -> ParseResult<Vec<TypeName>> {
         let mut types = Vec::new();
         let mut bracket_level = 0;
@@ -129,7 +113,8 @@ impl TypeName {
 impl TryFrom<&str> for TypeName {
     type Error = ParseError;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::parse_type(value)
+        let mut tokens = create_token_reader(value.as_bytes());
+        parse_type_name(&mut tokens)
     }
 }
 

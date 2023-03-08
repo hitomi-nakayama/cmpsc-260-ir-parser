@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use tokenizer::{TokenReader};
 
 use crate::instruction::{BasicBlockName, Instruction};
-use crate::variable::{TypeName, Variable, Value};
+use crate::variable::{BaseType, TypeName, Variable, Value};
 use crate::parse_result::{ParseError, ParseResult};
 use crate::program::{BasicBlock, Function, Program, Struct};
 
@@ -314,10 +314,37 @@ pub fn parse_variable(tokens: &mut TokenReader) -> ParseResult<Variable> {
     Ok(Variable::new(token, type_name))
 }
 
-fn parse_type_name(tokens: &mut TokenReader) -> ParseResult<TypeName> {
+pub fn parse_type_name(tokens: &mut TokenReader) -> Result<TypeName, ParseError> {
     let line_number = tokens.line_number();
-    let token = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a type name here.".to_string()))?;
-    TypeName::try_from(token.as_str())
+
+    let base_type = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a type name here.".to_string()))?;
+
+    if tokens.peek() == Some("[") {
+        return Err(ParseError::Generic("Array types are not supported yet.".to_string()));
+    }
+
+
+    // let base_type = if let Some((return_type, rest)) = base_type.split_once("[") {
+    //     let return_type = Box::new(return_type.try_into()?);
+    //     let args = Self::get_func_arg_types(rest)?;
+    //     BaseType::FunctionPointer(return_type, args)
+    // } else { // basic type
+    //     if base_type.find(&['*', '[', ']']).is_some() {
+    //         return Err(ParseError::Generic(format!("Invalid type name {}", base_type)));
+    //     }
+    //     BaseType::VariableType(base_type.to_owned())
+    // };
+
+    let mut indirection: usize = 0;
+    while tokens.peek() == Some("*") {
+        tokens.take();
+        indirection += 1;
+    }
+
+    Ok(TypeName{
+        indirection_level: indirection as u8,
+        base_type: BaseType::VariableType(base_type)
+    })
 }
 
 fn parse_block_name(tokens: &mut TokenReader) -> ParseResult<BasicBlockName> {
