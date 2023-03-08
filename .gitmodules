@@ -1,0 +1,4 @@
+[submodule "libs/cmpsc-260-tokenizer"]
+	path = libs/cmpsc-260-tokenizer
+	url = git@github.com:hitomi-nakayama/cmpsc-260-tokenizer.git
+	branch = main

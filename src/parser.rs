@@ -1,13 +1,14 @@
 use std::collections::HashMap;
 
+use tokenizer::{TokenReader};
+
 use crate::instruction::TypeName;
-#[allow(unused_imports)]
-use crate::instruction::{BasicBlockName, Instruction, Operation, Relation,
+use crate::instruction::{BasicBlockName, Instruction,
     Value, Variable};
 
 use crate::parse_result::{ParseError, ParseResult};
 use crate::program::{BasicBlock, Function, Program, Struct};
-use crate::text::{TokenReader};
+
 
 
 pub fn parse(tokens: &mut TokenReader) -> ParseResult<Program> {
@@ -342,6 +343,9 @@ pub fn expect(tokens: &mut TokenReader, expected: &str) -> ParseResult<()> {
 
 #[cfg(test)]
 mod tests {
+    use crate::text::create_token_reader;
+    use crate::instruction::{Operation, Relation};
+
     use super::*;
     #[test]
     fn parse_function_params_0() {
@@ -373,7 +377,7 @@ mod tests {
     #[test]
     fn parse_function_header_0() {
         let source = "function foo(p:int) -> int {";
-        let mut reader = TokenReader::from_buf_read(source.as_bytes());
+        let mut reader = str_to_tokens(source);
 
         let expected_name = "foo".to_string();
         let expected_params = vec![Variable::try_from("p:int").unwrap()];
@@ -390,7 +394,7 @@ mod tests {
     #[test]
     fn parse_function_header_empty() {
         let source = "function main() -> int {";
-        let mut reader = TokenReader::from_buf_read(source.as_bytes());
+        let mut reader = str_to_tokens(source);
 
         let expected_name = "main".to_owned();
         let expected_params: Vec<Variable> = Vec::new();
@@ -407,7 +411,7 @@ mod tests {
     #[test]
     fn parse_function_header_no_spaces() {
         let source = "function main(x:int*)->int{";
-        let mut reader = TokenReader::from_buf_read(source.as_bytes());
+        let mut reader = str_to_tokens(source);
 
         let expected_name = "main".to_owned();
         let expected_params: Vec<Variable> = vec!["x:int*".try_into().unwrap()];
@@ -430,7 +434,7 @@ int{
 main.entry:
 $ret 0 }";
 
-        let mut reader = TokenReader::from_buf_read(source.as_bytes());
+        let mut reader = str_to_tokens(source);
 
         let expected = Function {
             name: "main".to_owned(),
@@ -730,7 +734,7 @@ $ret 0 }";
             }
         ];
 
-        let mut reader = TokenReader::from_buf_read(basic_block.as_bytes());
+        let mut reader = str_to_tokens(basic_block);
         let actual = parse_basic_blocks(&mut reader).unwrap();
         assert_eq!(expected, actual);
     }
@@ -751,7 +755,7 @@ $ret 0
             }
         ];
 
-        let mut reader = TokenReader::from_buf_read(basic_block.as_bytes());
+        let mut reader = str_to_tokens(basic_block);
         let actual = parse_basic_blocks(&mut reader).unwrap();
         assert_eq!(expected, actual);
     }
@@ -798,7 +802,7 @@ if.else:
             }
         ];
 
-        let mut reader = TokenReader::from_buf_read(basic_blocks.as_bytes());
+        let mut reader = str_to_tokens(basic_blocks);
         let actual = parse_basic_blocks(&mut reader).unwrap();
         assert_eq!(expected, actual);
     }
@@ -887,6 +891,6 @@ if.else:
     }
 
     fn str_to_tokens(input: &str) -> TokenReader {
-        TokenReader::from_buf_read(input.as_bytes())
+        create_token_reader(input.as_bytes())
     }
 }
