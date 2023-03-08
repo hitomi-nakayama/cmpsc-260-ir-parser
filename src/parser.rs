@@ -619,6 +619,19 @@ $ret 0 }";
     }
 
     #[test]
+    fn parse_instruction_copy_function_ptr() {
+        let instruction = "y:int[ int, int* ]* = $copy x:int[ int, int* ]*";
+        let expected = Instruction::Copy(
+            "y:int[int,int*]*".try_into().unwrap(),
+            "x:int[int,int*]*".try_into().unwrap()
+        );
+
+        let mut tokens = str_to_tokens(instruction);
+        let actual = parse_instruction(&mut tokens).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
     fn parse_instruction_load() {
         let instruction = "i:foo* = $load next3:foo**";
         let expected = Instruction::Load(
