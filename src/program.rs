@@ -114,6 +114,7 @@ impl BasicBlockId {
     }
 }
 
+#[derive(Debug, Hash, Clone, PartialEq, Eq)]
 pub struct BasicBlockIdConversionError;
 
 impl TryFrom<&str> for BasicBlockId {
