@@ -60,12 +60,25 @@ impl BasicBlock {
      * Returns the name of the basic blocks
      * that this basic block jumps and branches to.
      */
-    pub fn jumps_to(&self) -> Vec<BasicBlockName> {
+    pub fn jumps_to(&self) -> Vec<BasicBlockId> {
         if let Some(instr) = self.instructions.last(){
             match instr {
-                Instruction::Jump(target) => vec![target.to_owned()],
+                Instruction::Jump(target) => vec![
+                    BasicBlockId {
+                        function: self.function.clone(),
+                        basic_block: target.to_owned()
+                    }],
                 Instruction::Branch(_, true_branch, false_branch) =>
-                    vec![true_branch.to_owned(), false_branch.to_owned()],
+                    vec![
+                        BasicBlockId {
+                            function: self.function.clone(),
+                            basic_block: true_branch.to_owned()
+                        },
+                        BasicBlockId {
+                            function: self.function.clone(),
+                            basic_block: false_branch.to_owned()
+                        }
+                    ],
                 Instruction::Ret(_) => Vec::new(),
                 _ => panic!("Basic block does not end in a jump, branch, or ret instruction")
             }
@@ -188,7 +201,7 @@ mod tests {
                 Instruction::Jump("bb1".into())
             ]
         };
-        let expected: Vec<BasicBlockName> = vec!["bb1".into()];
+        let expected: Vec<BasicBlockId> = vec!["main.bb1".try_into().unwrap()];
         let actual = bb.jumps_to();
         assert_eq!(expected, actual);
     }
@@ -202,7 +215,7 @@ mod tests {
                 Instruction::Branch("x:int".try_into().unwrap(), "bb1".into(), "bb2".into())
             ]
         };
-        let expected: Vec<BasicBlockName> = vec!["bb1".into(), "bb2".into()];
+        let expected: Vec<BasicBlockId> = vec!["main.bb1".try_into().unwrap(), "main.bb2".try_into().unwrap()];
         let actual = bb.jumps_to();
         assert_eq!(expected, actual);
     }
@@ -216,7 +229,7 @@ mod tests {
                 Instruction::Ret("x:int".try_into().unwrap())
             ]
         };
-        let expected: Vec<BasicBlockName> = Vec::new();
+        let expected: Vec<BasicBlockId> = Vec::new();
         let actual = bb.jumps_to();
 
         assert_eq!(expected, actual);
