@@ -118,7 +118,7 @@ impl BasicBlock {
 /**
  * A unique identifier for a basic block.
  */
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct BasicBlockId {
     pub function: FunctionId,
     pub basic_block: BasicBlockName
@@ -156,7 +156,7 @@ impl TryFrom<&str> for BasicBlockId {
 /**
  * A unique identifier for an instruction.
  */
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct InstructionId {
     pub basic_block: BasicBlockId,
     pub index: usize, // index of instruction within basic block
