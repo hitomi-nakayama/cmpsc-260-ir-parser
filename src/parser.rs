@@ -52,7 +52,7 @@ fn parse_struct(tokens: &mut TokenReader) -> ParseResult<Struct> {
 
 fn parse_function(tokens: &mut TokenReader) -> ParseResult<Function> {
     let (function_name, params, return_type) = parse_function_header(tokens)?;
-    let basic_blocks = parse_basic_blocks(tokens)?;
+    let basic_blocks = parse_basic_blocks(tokens, &function_name)?;
 
     Ok(Function{
         name: function_name,
@@ -78,13 +78,14 @@ fn parse_function_header(tokens: &mut TokenReader) -> ParseResult<(String, Vec<V
     Ok((function_name, params, return_type))
 }
 
-fn parse_basic_blocks(tokens: &mut TokenReader) -> ParseResult<HashMap<BasicBlockName, BasicBlock>> {
+fn parse_basic_blocks(tokens: &mut TokenReader, function_name: &str) -> ParseResult<HashMap<BasicBlockName, BasicBlock>> {
     let mut basic_blocks = HashMap::new();
 
     loop {
         let label = parse_label(tokens)?;
         let mut block = BasicBlock {
             name: label,
+            function: function_name.to_owned(),
             instructions: Vec::new()
         };
         while !(is_end_of_basic_block(tokens)?) {
@@ -473,6 +474,7 @@ $ret 0 }";
             basic_blocks: map![
                 "main.entry".to_owned() => BasicBlock {
                     name: "main.entry".to_owned(),
+                    function: "main".to_owned(),
                     instructions: vec![
                         Instruction::Ret(Value::Constant(0))
                     ]
@@ -759,6 +761,7 @@ $ret 0 }";
 }";
         let expected = map![
             "entry".to_owned() => BasicBlock{
+                function: "main".to_owned(),
                 name: "entry".to_owned(),
                 instructions: vec![
                     Instruction::Call(
@@ -778,7 +781,7 @@ $ret 0 }";
         ];
 
         let mut reader = str_to_tokens(basic_block);
-        let actual = parse_basic_blocks(&mut reader).unwrap();
+        let actual = parse_basic_blocks(&mut reader, "main").unwrap();
         assert_eq!(expected, actual);
     }
 
@@ -790,6 +793,7 @@ $ret 0
         let expected = map![
             "entry".to_owned() => BasicBlock{
                 name: "entry".to_owned(),
+                function: "main".to_owned(),
                 instructions: vec![
                     Instruction::Ret(
                         Value::Constant(0)
@@ -799,7 +803,7 @@ $ret 0
         ];
 
         let mut reader = str_to_tokens(basic_block);
-        let actual = parse_basic_blocks(&mut reader).unwrap();
+        let actual = parse_basic_blocks(&mut reader, "main").unwrap();
         assert_eq!(expected, actual);
     }
 
@@ -816,6 +820,7 @@ if.else:
         let expected = map![
             "entry".to_owned() => BasicBlock{
                 name: "entry".to_owned(),
+                function: "main".to_owned(),
                 instructions: vec![
                     Instruction::Cmp(
                         "neq".try_into().unwrap(),
@@ -832,6 +837,7 @@ if.else:
             },
             "if.else".to_owned() => BasicBlock{
                 name: "if.else".to_owned(),
+                function: "main".to_owned(),
                 instructions: vec![
                     Instruction::Call(
                         "call3:int".try_into().unwrap(),
@@ -846,7 +852,7 @@ if.else:
         ];
 
         let mut reader = str_to_tokens(basic_blocks);
-        let actual = parse_basic_blocks(&mut reader).unwrap();
+        let actual = parse_basic_blocks(&mut reader, "main").unwrap();
         assert_eq!(expected, actual);
     }
 
@@ -912,6 +918,7 @@ if.else:
                     basic_blocks: map![
                         "entry".to_owned() => BasicBlock{
                             name: "entry".to_owned(),
+                            function: "main".to_owned(),
                             instructions: vec![
                                 Instruction::Ret(
                                     Value::Constant(0)
