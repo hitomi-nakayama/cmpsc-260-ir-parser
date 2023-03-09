@@ -46,6 +46,12 @@ impl Function {
             });
         Box::new(iter)
     }
+
+    pub fn basic_block_ids(&self) -> Vec<BasicBlockId> {
+        self.basic_blocks.values()
+            .map(|bb| bb.id())
+            .collect()
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
