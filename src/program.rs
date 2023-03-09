@@ -1,3 +1,4 @@
+use std::fmt;
 use std::{collections::HashMap};
 
 use crate::instruction::{BasicBlockName, FieldName, FunctionName, Instruction,
@@ -133,6 +134,12 @@ impl BasicBlockId {
     }
 }
 
+impl fmt::Display for BasicBlockId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}.{}", self.function, self.basic_block)
+    }
+}
+
 #[derive(Debug, Hash, Clone, PartialEq, Eq)]
 pub struct BasicBlockIdConversionError;
 
@@ -168,6 +175,12 @@ impl InstructionId {
             basic_block: BasicBlockId::new(function, basic_block),
             index
         }
+    }
+}
+
+impl fmt::Display for InstructionId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}.{}", self.basic_block, self.index)
     }
 }
 
