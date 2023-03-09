@@ -13,7 +13,9 @@ pub use crate::instruction::{BasicBlockName, Instruction,
     FieldName, FunctionName, Operation, Relation, StructName};
 pub use crate::parse_result::{ParseError, ParseResult};
 pub use crate::parser::{parse, parse_variable};
-pub use crate::program::{BasicBlock, BasicBlockId, Function, FunctionId,
-                         InstructionId, Program, Struct};
+pub use crate::program::{BasicBlock, BasicBlockId, BasicBlockIdConversionError,
+                         Function, FunctionId,
+                         InstructionId, InstructionIdConversionError,
+                         Program, Struct};
 pub use crate::text::{create_token_reader, TokenReader};
 pub use crate::variable::{BaseType, TypeName, Variable, Value};

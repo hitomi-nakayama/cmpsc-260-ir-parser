@@ -114,6 +114,25 @@ impl BasicBlockId {
     }
 }
 
+pub struct BasicBlockIdConversionError;
+
+impl TryFrom<&str> for BasicBlockId {
+    type Error = BasicBlockIdConversionError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let parts: Vec<&str> = value.split('.').collect();
+        if parts.len() != 2 {
+            return Err(BasicBlockIdConversionError);
+        }
+        let function = parts[0];
+        let basic_block = parts[1];
+        Ok(BasicBlockId{
+            function: function.to_owned(),
+            basic_block: basic_block.to_owned()
+        })
+    }
+}
+
 /**
  * A unique identifier for an instruction.
  */
@@ -129,6 +148,29 @@ impl InstructionId {
             basic_block: BasicBlockId::new(function, basic_block),
             index
         }
+    }
+}
+
+#[derive(Debug, Hash, Clone, PartialEq, Eq)]
+pub struct InstructionIdConversionError;
+
+impl TryFrom<&str> for InstructionId {
+    type Error = InstructionIdConversionError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let (bb, index) = value.rsplit_once('.')
+            .ok_or(InstructionIdConversionError)?;
+
+        let bb = BasicBlockId::try_from(bb)
+            .map_err(|_| InstructionIdConversionError)?;
+
+        let index = index.parse::<usize>()
+            .map_err(|_| InstructionIdConversionError)?;
+
+        Ok(InstructionId{
+            basic_block: bb,
+            index
+        })
     }
 }
 
@@ -200,5 +242,19 @@ mod tests {
         };
         let actual = function.entry_block();
         assert_eq!(&expected, actual);
+    }
+
+    #[test]
+    fn test_instruction_id_try_from_str() {
+        let actual = InstructionId::try_from("main.entry.0").unwrap();
+
+        let expected = InstructionId{
+            basic_block: BasicBlockId{
+                function: "main".to_owned(),
+                basic_block: "entry".to_owned()
+            },
+            index: 0
+        };
+        assert_eq!(expected, actual);
     }
 }

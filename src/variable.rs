@@ -2,7 +2,7 @@ use std::convert::{TryFrom, TryInto};
 use std::fmt;
 
 use crate::{create_token_reader, parse_variable};
-use crate::parse_result::{ParseError, ParseResult};
+use crate::parse_result::ParseError;
 use crate::parser::parse_type_name;
 
 
