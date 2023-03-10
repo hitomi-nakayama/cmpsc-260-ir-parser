@@ -108,6 +108,21 @@ impl BasicBlock {
         }
     }
 
+    pub fn terminal_instruction(&self) -> Option<&Instruction> {
+        self.instructions.last()
+    }
+
+    pub fn terminal_instruction_id(&self) -> Option<InstructionId> {
+        if self.instructions.len() > 0 {
+            Some(InstructionId{
+                basic_block: self.id(),
+                index: self.instructions.len() - 1
+            })
+        } else {
+            None
+        }
+    }
+
     pub fn enumerate_instructions<'a>(&'a self)
             -> Box<dyn Iterator<Item=(InstructionId, &Instruction)> + 'a> {
         let iter = self.instructions.iter()
