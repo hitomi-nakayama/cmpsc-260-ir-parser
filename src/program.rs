@@ -53,6 +53,13 @@ impl Function {
             .map(|bb| bb.id())
             .collect()
     }
+
+    pub fn get_basic_block(&self, id: &BasicBlockId) -> Option<&BasicBlock> {
+        if id.function != self.id() {
+            return None;
+        }
+        self.basic_blocks.get(&id.basic_block)
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
