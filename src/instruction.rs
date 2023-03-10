@@ -124,7 +124,7 @@ impl fmt::Display for Instruction {
                 Ok(())
             },
             Instruction::Ret(retval) => write!(f, "$ret {}", retval),
-            Instruction::Store(op0, op1) => write!(f, "store {} {}", op0, op1),
+            Instruction::Store(op0, op1) => write!(f, "$store {} {}", op0, op1),
         }
     }
 }
