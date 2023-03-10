@@ -123,6 +123,9 @@ impl BasicBlock {
     }
 }
 
+#[derive(Debug, Hash, Clone, PartialEq, Eq)]
+pub struct BasicBlockIdConversionError;
+
 /**
  * A unique identifier for a basic block.
  */
@@ -139,22 +142,9 @@ impl BasicBlockId {
             basic_block: basic_block.name.clone()
         }
     }
-}
 
-impl fmt::Display for BasicBlockId {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}.{}", self.function, self.basic_block)
-    }
-}
-
-#[derive(Debug, Hash, Clone, PartialEq, Eq)]
-pub struct BasicBlockIdConversionError;
-
-impl TryFrom<&str> for BasicBlockId {
-    type Error = BasicBlockIdConversionError;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let parts: Vec<&str> = value.split('.').collect();
+    pub fn from_str(s: &str, sep: char) -> Result<BasicBlockId, BasicBlockIdConversionError> {
+        let parts: Vec<&str> = s.split(sep).collect();
         if parts.len() != 2 {
             return Err(BasicBlockIdConversionError);
         }
@@ -166,6 +156,23 @@ impl TryFrom<&str> for BasicBlockId {
         })
     }
 }
+
+impl fmt::Display for BasicBlockId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}.{}", self.function, self.basic_block)
+    }
+}
+
+impl TryFrom<&str> for BasicBlockId {
+    type Error = BasicBlockIdConversionError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Self::from_str(value, '.')
+    }
+}
+
+#[derive(Debug, Hash, Clone, PartialEq, Eq)]
+pub struct InstructionIdConversionError;
 
 /**
  * A unique identifier for an instruction.
@@ -183,22 +190,9 @@ impl InstructionId {
             index
         }
     }
-}
 
-impl fmt::Display for InstructionId {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}.{}", self.basic_block, self.index)
-    }
-}
-
-#[derive(Debug, Hash, Clone, PartialEq, Eq)]
-pub struct InstructionIdConversionError;
-
-impl TryFrom<&str> for InstructionId {
-    type Error = InstructionIdConversionError;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let (bb, index) = value.rsplit_once('.')
+    pub fn from_str(s: &str, sep: char) -> Result<InstructionId, InstructionIdConversionError> {
+        let (bb, index) = s.rsplit_once('.')
             .ok_or(InstructionIdConversionError)?;
 
         let bb = BasicBlockId::try_from(bb)
@@ -211,6 +205,22 @@ impl TryFrom<&str> for InstructionId {
             basic_block: bb,
             index
         })
+    }
+}
+
+impl fmt::Display for InstructionId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}.{}", self.basic_block, self.index)
+    }
+}
+
+
+
+impl TryFrom<&str> for InstructionId {
+    type Error = InstructionIdConversionError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Self::from_str(value, '.')
     }
 }
 
