@@ -126,6 +126,12 @@ impl BasicBlock {
 #[derive(Debug, Hash, Clone, PartialEq, Eq)]
 pub struct BasicBlockIdConversionError;
 
+impl fmt::Display for BasicBlockIdConversionError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Invalid basic block id")
+    }
+}
+
 /**
  * A unique identifier for a basic block.
  */
@@ -174,6 +180,11 @@ impl TryFrom<&str> for BasicBlockId {
 #[derive(Debug, Hash, Clone, PartialEq, Eq)]
 pub struct InstructionIdConversionError;
 
+impl fmt::Display for InstructionIdConversionError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Invalid instruction id")
+    }
+}
 /**
  * A unique identifier for an instruction.
  */
@@ -213,8 +224,6 @@ impl fmt::Display for InstructionId {
         write!(f, "{}.{}", self.basic_block, self.index)
     }
 }
-
-
 
 impl TryFrom<&str> for InstructionId {
     type Error = InstructionIdConversionError;
