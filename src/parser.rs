@@ -70,8 +70,7 @@ fn parse_function_header(tokens: &mut TokenReader) -> ParseResult<(String, Vec<V
     let params = parse_function_params(tokens)?;
     expect(tokens, "->")?;
 
-    let return_type = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a return type here.".to_string()))?;
-    let return_type = TypeName::try_from(return_type.as_str())?;
+    let return_type = parse_type_name(tokens)?;
 
     expect(tokens, "{")?;
 
@@ -485,6 +484,23 @@ mod tests {
         let expected_name = "main".to_owned();
         let expected_params: Vec<Variable> = vec!["x:int*".try_into().unwrap()];
         let expected_return_type: TypeName = "int".try_into().unwrap();
+
+        let actual = parse_function_header(&mut reader).unwrap();
+        let (actual_name, actual_params, actual_return_type) = actual;
+
+        assert_eq!(expected_name, actual_name);
+        assert_eq!(expected_params, actual_params);
+        assert_eq!(expected_return_type, actual_return_type);
+    }
+
+    #[test]
+    fn parse_function_header_ptr_return() {
+        let source = "function main() -> int* {";
+        let mut reader = str_to_tokens(source);
+
+        let expected_name = "main".to_owned();
+        let expected_params: Vec<Variable> = vec![];
+        let expected_return_type: TypeName = "int*".try_into().unwrap();
 
         let actual = parse_function_header(&mut reader).unwrap();
         let (actual_name, actual_params, actual_return_type) = actual;
