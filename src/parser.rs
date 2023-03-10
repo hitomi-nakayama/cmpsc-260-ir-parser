@@ -50,7 +50,7 @@ fn parse_struct(tokens: &mut TokenReader) -> ParseResult<Struct> {
     })
 }
 
-fn parse_function(tokens: &mut TokenReader) -> ParseResult<Function> {
+pub fn parse_function(tokens: &mut TokenReader) -> ParseResult<Function> {
     let (function_name, params, return_type) = parse_function_header(tokens)?;
     let basic_blocks = parse_basic_blocks(tokens, &function_name)?;
 
