@@ -206,7 +206,7 @@ impl InstructionId {
         let (bb, index) = s.rsplit_once(sep)
             .ok_or(InstructionIdConversionError)?;
 
-        let bb = BasicBlockId::try_from(bb)
+        let bb = BasicBlockId::from_str(bb, sep)
             .map_err(|_| InstructionIdConversionError)?;
 
         let index = index.parse::<usize>()
