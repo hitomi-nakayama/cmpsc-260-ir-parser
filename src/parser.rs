@@ -333,7 +333,7 @@ fn parse_list<T, F>(tokens: &mut TokenReader, open: &str, close: &str,
 
     expect(tokens, open)?;
 
-    let next_token = tokens.peek().ok_or(ParseError::Expected(line_number, close.to_owned()))?;
+    let next_token = tokens.peek().ok_or(ParseError::ListError(line_number, close.to_owned()))?;
     if next_token == close {
         tokens.take();
         return Ok(items);
@@ -343,7 +343,7 @@ fn parse_list<T, F>(tokens: &mut TokenReader, open: &str, close: &str,
         let item = parse_fn(tokens)?;
         items.push(item);
 
-        let next_token = tokens.peek().ok_or(ParseError::Expected(line_number, close.to_owned()))?;
+        let next_token = tokens.peek().ok_or(ParseError::ListError(line_number, close.to_owned()))?;
         if next_token == close {
             tokens.take();
             return Ok(items);
