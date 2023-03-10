@@ -262,8 +262,8 @@ fn is_variable(tokens: &mut TokenReader) -> bool {
 
 fn is_label(tokens: &mut TokenReader) -> bool {
     tokens.peek_n(1).map_or(false, |x| x == ":")
-        // a hack to filter out the lhs of instructions
-        && tokens.peek_n(3).map_or(false, |x| x != "=")
+        // a hack to filter out variables.
+        && tokens.peek_n(3).map_or(false, |x| x != "=" && x != "[" && x != "*")
 }
 
 fn parse_label(tokens: &mut TokenReader) -> ParseResult<BasicBlockName> {
@@ -374,10 +374,48 @@ pub fn expect(tokens: &mut TokenReader, expected: &str) -> ParseResult<()> {
 
 #[cfg(test)]
 mod tests {
-    use crate::text::create_token_reader;
     use crate::instruction::{Operation, Relation};
 
+    use crate::text::str_to_tokens;
+
     use super::*;
+
+    #[test]
+    fn parse_function_addrof() {
+        let source = "function main() -> int {
+            entry:
+              x:int* = $addrof y:int
+              $ret 0
+            }";
+
+        let mut tokens = str_to_tokens(source);
+
+        let expected = Function {
+            name: "main".to_owned(),
+            return_type: "int".try_into().unwrap(),
+            params: vec![],
+            basic_blocks: map![
+                "entry".to_owned() => BasicBlock {
+                    function: "main".to_owned(),
+                    name: "entry".to_owned(),
+                    instructions: vec![
+                        Instruction::AddrOf(
+                            "x:int*".try_into().unwrap(),
+                            "y:int".try_into().unwrap()
+                        ),
+                        Instruction::Ret (
+                            0.into(),
+                        )
+                    ],
+                }
+            ],
+        };
+
+        let actual = parse_function(&mut tokens).unwrap();
+
+        assert_eq!(expected, actual);
+    }
+
     #[test]
     fn parse_function_params_0() {
         let params = vec!["(", "value:int", ",", "left:TreeNode*", ",", "right:TreeNode*", ")"];
@@ -938,9 +976,5 @@ if.else:
         let mut tokens = str_to_tokens("$ret");
         let actual = is_opcode(&mut tokens);
         assert!(actual);
-    }
-
-    fn str_to_tokens(input: &str) -> TokenReader {
-        create_token_reader(input.as_bytes())
     }
 }
