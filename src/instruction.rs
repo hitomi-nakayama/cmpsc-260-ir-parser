@@ -3,6 +3,8 @@ pub type FunctionName = String;
 pub type BasicBlockName = String;
 pub type StructName = String;
 
+use std::fmt;
+
 use crate::parse_result::{ParseError};
 use crate::variable::{Variable, Value};
 
@@ -85,12 +87,76 @@ impl Instruction {
     }
 }
 
+impl fmt::Display for Instruction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Instruction::Arith(op, lhs, op0, op1) => write!(f, "{} = $arith {} {} {}", lhs, op, op0, op1),
+            Instruction::Branch(op0, op1, op2) => write!(f, "$branch {} {} {}", op0, op1, op2),
+            Instruction::Jump(op0) => write!(f, "$jump {}", op0),
+            Instruction::Cmp(rel, lhs, op0, op1) => write!(f, "{} = $cmp {} {} {}", lhs, rel, op0, op1),
+            Instruction::Phi(lhs, args) => {
+                write!(f, "{} = $phi(", lhs)?;
+                write_call_args(f, args)?;
+                write!(f, ")")
+            }
+            Instruction::Copy(lhs, rhs) => write!(f, "{} = $copy {}", lhs, rhs),
+            Instruction::Load(lhs, rhs) => write!(f, "{} = $load {}", lhs, rhs),
+            Instruction::Select(lhs, op0, op1, op2) => {
+                write!(f, "{} = $select {} {} {}", lhs, op0, op1, op2)
+            }
+            Instruction::Call(lhs, func, args) => {
+                write!(f, "{} = $call {}(", lhs, func)?;
+                write_call_args(f, args)?;
+                write!(f, ")")
+            }
+            Instruction::ICall(lhs, func_ptr, args) => {
+                write!(f, "{} = $icall {}(", lhs, func_ptr)?;
+                write_call_args(f, args)?;
+                write!(f, ")")
+            },
+            Instruction::Alloc(lhs) => write!(f, "{} = $alloc", lhs),
+            Instruction::AddrOf(lhs, rhs) => write!(f, "{} = $addrof {}", lhs, rhs),
+            Instruction::Gep(lhs, op0, op1, op2) => {
+                write!(f, "{} = $gep {} {}", lhs, op0, op1)?;
+                if let Some(field) = op2 {
+                    write!(f, " {}", field)?;
+                }
+                Ok(())
+            },
+            Instruction::Ret(retval) => write!(f, "$ret {}", retval),
+            Instruction::Store(op0, op1) => write!(f, "store {} {}", op0, op1),
+        }
+    }
+}
+
+fn write_call_args(f: &mut fmt::Formatter, args: &[Value]) -> fmt::Result {
+    for (i, arg) in args.iter().enumerate() {
+        if i > 0 {
+            write!(f, ", ")?;
+        }
+        write!(f, "{}", arg)?;
+    }
+    Ok(())
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Operation {
     Add,
     Div,
     Mul,
     Sub
+}
+
+impl fmt::Display for Operation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Operation::*;
+        match self {
+            Add => write!(f, "add"),
+            Div => write!(f, "div"),
+            Mul => write!(f, "mul"),
+            Sub => write!(f, "sub")
+        }
+    }
 }
 
 impl TryFrom<&str> for Operation {
@@ -115,6 +181,19 @@ pub enum Relation {
     Lt,
     Lte,  // less than or equal
     Neq
+}
+
+impl fmt::Display for Relation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Relation::*;
+        match self {
+            Eq => write!(f, "eq"),
+            Gt => write!(f, "gt"),
+            Lt => write!(f, "lt"),
+            Lte => write!(f, "lte"),
+            Neq => write!(f, "neq")
+        }
+    }
 }
 
 impl TryFrom<&str> for Relation {
