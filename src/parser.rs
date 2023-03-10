@@ -301,10 +301,11 @@ pub fn parse_type_name(tokens: &mut TokenReader) -> Result<TypeName, ParseError>
     let base_type = tokens.take().ok_or(ParseError::TypeParseError(line_number, "Expected a type name here.".to_string()))?;
 
     let base_type = if tokens.peek() == Some("[") {
-        let args = parse_list(tokens, "[", "]", parse_type_name)?;
+        let args = parse_list(tokens, "[", "]", parse_type_name)
+            .map_err(|e| ParseError::TypeParseError(line_number, e.to_string()))?;
         let return_type = Box::new(TypeName{
             indirection_level: 0,
-            base_type: BaseType::VariableType(base_type.to_owned())
+            base_type: BaseType::VariableType(base_type)
         });
         BaseType::FunctionPointer(return_type, args)
     } else {
