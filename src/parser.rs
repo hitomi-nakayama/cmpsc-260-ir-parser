@@ -289,20 +289,28 @@ fn parse_value(tokens: &mut TokenReader) -> ParseResult<Value> {
 pub fn parse_variable(tokens: &mut TokenReader) -> ParseResult<Variable> {
     let line_number = tokens.line_number();
 
-    let token = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a variable name here.".to_string()))?;
-    expect(tokens, ":")?;
-    let type_name = parse_type_name(tokens)?;
+    let token = tokens.take()
+        .ok_or(ParseError::VariableParseError(line_number, "Expected a variable name here.".to_string()))?;
+
+    expect(tokens, ":")
+        .map_err(|e| ParseError::VariableParseError(line_number, e.to_string()))?;
+
+    let type_name = parse_type_name(tokens)
+        .map_err(|e| ParseError::VariableParseError(line_number, e.to_string()))?;
+
     Ok(Variable::new(token, type_name))
 }
 
 pub fn parse_type_name(tokens: &mut TokenReader) -> Result<TypeName, ParseError> {
     let line_number = tokens.line_number();
 
-    let base_type = tokens.take().ok_or(ParseError::TypeParseError(line_number, "Expected a type name here.".to_string()))?;
+    let base_type = tokens.take()
+        .ok_or(ParseError::TypeParseError(line_number, "Expected a type name here.".to_string()))?;
 
     let base_type = if tokens.peek() == Some("[") {
         let args = parse_list(tokens, "[", "]", parse_type_name)
             .map_err(|e| ParseError::TypeParseError(line_number, e.to_string()))?;
+
         let return_type = Box::new(TypeName{
             indirection_level: 0,
             base_type: BaseType::VariableType(base_type)
