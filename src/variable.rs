@@ -28,6 +28,15 @@ impl Value {
     }
 }
 
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Value::Constant(c) => write!(f, "{}", c),
+            Value::Variable(v) => write!(f, "{}", v)
+        }
+    }
+}
+
 impl From<Variable> for Value {
     fn from(var: Variable) -> Self {
         Value::Variable(var)
@@ -62,6 +71,12 @@ pub struct Variable {
 impl Variable {
     pub fn new(name: VariableName, type_name: TypeName) -> Self {
         Variable{name, type_name}
+    }
+}
+
+impl fmt::Display for Variable {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}:{}", self.name, self.type_name)
     }
 }
 
