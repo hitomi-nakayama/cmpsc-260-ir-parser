@@ -192,7 +192,7 @@ impl InstructionId {
     }
 
     pub fn from_str(s: &str, sep: char) -> Result<InstructionId, InstructionIdConversionError> {
-        let (bb, index) = s.rsplit_once('.')
+        let (bb, index) = s.rsplit_once(sep)
             .ok_or(InstructionIdConversionError)?;
 
         let bb = BasicBlockId::try_from(bb)
