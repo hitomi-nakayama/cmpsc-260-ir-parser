@@ -3,7 +3,7 @@ use std::fmt;
 
 use crate::{create_token_reader, parse_variable};
 use crate::parse_result::ParseError;
-use crate::parser::parse_type_name;
+use crate::parser::{parse_type_name, parse_value};
 
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -14,17 +14,11 @@ pub enum Value {
 
 impl Value {
     pub fn is_variable(&self) -> bool {
-        match self {
-            Value::Variable(_) => true,
-            _ => false
-        }
+        matches!(self, Value::Variable(_))
     }
 
     pub fn is_constant(&self) -> bool {
-        match self {
-            Value::Constant(_) => true,
-            _ => false
-        }
+        matches!(self, Value::Constant(_))
     }
 }
 
@@ -52,10 +46,13 @@ impl TryFrom<&str> for Value {
     type Error = ParseError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if let Ok(constant) = value.parse() {
-            Ok(Value::Constant(constant))
+        let mut tokens = create_token_reader(value.as_bytes());
+        let variable = parse_value(&mut tokens)?;
+
+        if !(tokens.is_empty()) {
+            Err(ParseError::Generic(format!("Invalid value {}", value)))
         } else {
-            Ok(Value::Variable(value.try_into()?))
+            Ok(variable)
         }
     }
 }
@@ -107,17 +104,11 @@ impl TypeName {
     }
 
     pub fn is_function_pointer(&self) -> bool {
-        match self.base_type {
-            BaseType::FunctionPointer(_, _) => true,
-            _ => false
-        }
+        matches!(self.base_type, BaseType::FunctionPointer(_, _))
     }
 
     pub fn is_variable_type(&self) -> bool {
-        match self.base_type {
-            BaseType::VariableType(_) => true,
-            _ => false
-        }
+        matches!(self.base_type, BaseType::VariableType(_))
     }
 
     pub fn is_pointer(&self) -> bool {
@@ -192,6 +183,42 @@ mod tests {
         assert_eq!(var.name, "my_var");
 
         let expected_type = "i32*".try_into().unwrap();
+        assert_eq!(var.type_name, expected_type);
+    }
+
+    #[test]
+    fn test_variable_empty_function_ptr() {
+        let var = Variable::try_from("f:int[]*").unwrap();
+        assert_eq!(var.name, "f");
+
+        let expected_type = TypeName {
+            indirection_level: 1,
+            base_type: BaseType::FunctionPointer(
+                TypeName {
+                    indirection_level: 0,
+                    base_type: BaseType::VariableType("int".into())
+                }.into(),
+                vec![]
+            )
+        };
+        assert_eq!(var.type_name, expected_type);
+    }
+
+    #[test]
+    fn test_variable_nested_function_ptr() {
+        let var = Variable::try_from("@f:int[]*").unwrap();
+        assert_eq!(var.name, "@f");
+
+        let expected_type = TypeName {
+            indirection_level: 1,
+            base_type: BaseType::FunctionPointer(
+                TypeName {
+                    indirection_level: 0,
+                    base_type: BaseType::VariableType("int".into())
+                }.into(),
+                vec![]
+            )
+        };
         assert_eq!(var.type_name, expected_type);
     }
 

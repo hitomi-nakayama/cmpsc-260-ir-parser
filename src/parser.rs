@@ -272,17 +272,15 @@ fn parse_label(tokens: &mut TokenReader) -> ParseResult<BasicBlockName> {
     Ok(label)
 }
 
-fn parse_value(tokens: &mut TokenReader) -> ParseResult<Value> {
+pub fn parse_value(tokens: &mut TokenReader) -> ParseResult<Value> {
     let line_number = tokens.line_number();
 
-    let first_token = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a value here.".to_string()))?;
-    let next_token = tokens.peek();
-    if next_token == Some(":") {
+    let first_token = tokens.peek().ok_or(ParseError::Expected(line_number, "Expected a value here.".to_string()))?;
+    if let Ok(constant) = first_token.parse() {
         tokens.take();
-        let type_name = parse_type_name(tokens)?;
-        Ok(Value::Variable(Variable::new(first_token, type_name)))
+        Ok(Value::Constant(constant))
     } else {
-        Ok(Value::try_from(first_token.as_str())?)
+        Ok(parse_variable(tokens)?.into())
     }
 }
 
@@ -426,7 +424,7 @@ mod tests {
 
     #[test]
     fn parse_function_params_0() {
-        let params = vec!["(", "value:int", ",", "left:TreeNode*", ",", "right:TreeNode*", ")"];
+        let params = vec!["(", "value", ":", "int", ",", "left", ":", "TreeNode", "*", ",", "right", ":", "TreeNode", "*", ")"];
         let params: Vec<String> = params.iter().map(|s| s.to_string()).collect();
         let mut params = TokenReader::from_tokens(params);
 
@@ -717,6 +715,21 @@ $ret 0 }";
             "tobool:int".try_into().unwrap(),
             "@foo:int[int]*".try_into().unwrap(),
             "@bar:int[int]*".try_into().unwrap()
+        );
+
+        let mut tokens = str_to_tokens(instruction);
+        let actual = parse_instruction(&mut tokens).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_instruction_select_with_spaces() {
+        let instruction = "cond : int [ int, int * ] * = $select tobool : int @foo : int [ int , int * ] * @bar : int [ int , int * ] *";
+        let expected = Instruction::Select(
+            "cond:int[int,int*]*".try_into().unwrap(),
+            "tobool:int".try_into().unwrap(),
+            "@foo:int[int,int*]*".try_into().unwrap(),
+            "@bar:int[int,int*]*".try_into().unwrap()
         );
 
         let mut tokens = str_to_tokens(instruction);
