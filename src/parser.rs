@@ -275,11 +275,25 @@ fn parse_label(tokens: &mut TokenReader) -> ParseResult<BasicBlockName> {
 pub fn parse_value(tokens: &mut TokenReader) -> ParseResult<Value> {
     let line_number = tokens.line_number();
 
-    let first_token = tokens.peek().ok_or(ParseError::Expected(line_number, "Expected a value here.".to_string()))?;
-    if let Ok(constant) = first_token.parse() {
+    let minus_token = tokens.peek()
+        .ok_or(ParseError::Expected(line_number, "Expected a value here.".to_string()))?;
+    let is_negative_constant = if minus_token == "-" {
         tokens.take();
-        Ok(Value::Constant(constant))
+        true
     } else {
+        false
+    };
+
+    let num_token = tokens.peek()
+        .ok_or(ParseError::Expected(line_number, "Expected a value here.".to_string()))?;
+    if let Ok(constant) = num_token.parse::<i32>() {
+        tokens.take();
+        let sign = if is_negative_constant { -1 } else { 1 };
+        Ok(Value::Constant(sign * constant))
+    } else {
+        if is_negative_constant {
+            return Err(ParseError::Expected(line_number, "Expected a negative constant here, but could not parse numerical part.".to_string()));
+        }
         Ok(parse_variable(tokens)?.into())
     }
 }

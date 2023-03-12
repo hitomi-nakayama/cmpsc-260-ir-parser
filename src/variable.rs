@@ -355,4 +355,10 @@ mod tests {
         let value = Value::try_from("0").unwrap();
         assert_eq!(value, Value::Constant(0));
     }
+
+    #[test]
+    fn test_value_negative() {
+        let value = Value::try_from("-1").unwrap();
+        assert_eq!(value, Value::Constant(-1));
+    }
 }
