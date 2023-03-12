@@ -5,7 +5,9 @@ pub type StructName = String;
 
 use std::fmt;
 
+use crate::create_token_reader;
 use crate::parse_result::{ParseError};
+use crate::parser::parse_instruction;
 use crate::variable::{Variable, Value};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -137,6 +139,19 @@ fn write_call_args(f: &mut fmt::Formatter, args: &[Value]) -> fmt::Result {
         write!(f, "{}", arg)?;
     }
     Ok(())
+}
+
+impl TryFrom<&str> for Instruction {
+    type Error = ParseError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let mut tokens = create_token_reader(value.as_bytes());
+        let instr = parse_instruction(&mut tokens)?;
+        if !(tokens.is_empty()) {
+            return Err(ParseError::Generic("Expected end of input.".to_owned()));
+        }
+        Ok(instr)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

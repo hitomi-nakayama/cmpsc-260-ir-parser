@@ -119,7 +119,7 @@ fn is_peek_close_brace(tokens: &mut TokenReader, error_msg: &str) -> ParseResult
     Ok(next_token == "}")
 }
 
-fn parse_instruction(tokens: &mut TokenReader) -> ParseResult<Instruction> {
+pub fn parse_instruction(tokens: &mut TokenReader) -> ParseResult<Instruction> {
     if is_variable(tokens) {
         parse_assign_instruction(tokens)
     } else {
