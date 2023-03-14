@@ -11,6 +11,18 @@ pub struct Program {
     pub structs: HashMap<StructName, Struct>
 }
 
+impl Program {
+    pub fn enumerate_instructions<'a>(&'a self)
+            -> Box<dyn Iterator<Item=(InstructionId, &Instruction)> + 'a> {
+
+        let iter = self.functions.values()
+            .flat_map(|f| {
+                f.enumerate_instructions()
+            });
+        Box::new(iter)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Struct {
     pub name: String,
