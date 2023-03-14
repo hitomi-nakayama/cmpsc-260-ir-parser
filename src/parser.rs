@@ -345,7 +345,7 @@ pub fn parse_type_name(tokens: &mut TokenReader) -> Result<TypeName, ParseError>
 }
 
 
-fn parse_list<T, F>(tokens: &mut TokenReader, open: &str, close: &str,
+pub fn parse_list<T, F>(tokens: &mut TokenReader, open: &str, close: &str,
                     mut parse_fn: F) -> ParseResult<Vec<T>>
         where F: FnMut(&mut TokenReader) -> ParseResult<T> {
 
