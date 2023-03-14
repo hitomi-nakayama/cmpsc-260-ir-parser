@@ -21,4 +21,4 @@ pub use crate::program::{BasicBlock, BasicBlockId, BasicBlockIdConversionError,
                          InstructionId, InstructionIdConversionError,
                          Program, Struct};
 pub use crate::text::{create_token_reader, str_to_tokens, TokenReader};
-pub use crate::variable::{BaseType, TypeName, Variable, Value};
+pub use crate::variable::{BaseType, TypeName, Variable, VariableName, Value};

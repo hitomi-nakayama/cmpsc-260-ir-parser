@@ -57,7 +57,7 @@ impl TryFrom<&str> for Value {
     }
 }
 
-type VariableName = String;
+pub type VariableName = String;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Variable {
