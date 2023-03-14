@@ -3,7 +3,7 @@ use std::{collections::HashMap};
 
 use crate::instruction::{BasicBlockName, FieldName, FunctionName, Instruction,
     StructName};
-use crate::variable::{TypeName, Variable};
+use crate::variable::{BaseType, TypeName, Variable};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Program {
@@ -71,6 +71,16 @@ impl Function {
             return None;
         }
         self.basic_blocks.get(&id.basic_block)
+    }
+
+    pub fn ptr_type(&self) -> TypeName {
+        TypeName {
+            indirection_level: 1,
+            base_type: BaseType::FunctionPointer(
+                Box::new(self.return_type.clone()),
+                self.params.iter().map(|p| p.type_name.clone()).collect()
+            )
+        }
     }
 }
 
@@ -262,6 +272,8 @@ impl TryFrom<&str> for InstructionId {
 
 #[cfg(test)]
 mod tests {
+    use crate::variable::BaseType;
+
     use super::*;
 
     #[test]
@@ -303,6 +315,30 @@ mod tests {
         };
         let expected: Vec<BasicBlockId> = Vec::new();
         let actual = bb.jumps_to();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn function_ptr_type() {
+        let func = function!("f", ("a:int*", "b:int**") => "int", {
+            "entry" => {
+                "$ret 0"
+            },
+        });
+
+        let actual = func.ptr_type();
+
+        let expected = TypeName {
+            indirection_level: 1,
+            base_type: BaseType::FunctionPointer(
+                Box::new("int".try_into().unwrap()),
+                vec![
+                    "int*".try_into().unwrap(),
+                    "int**".try_into().unwrap()
+                ]
+            )
+        };
 
         assert_eq!(expected, actual);
     }
