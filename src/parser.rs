@@ -310,7 +310,7 @@ pub fn parse_variable(tokens: &mut TokenReader) -> ParseResult<Variable> {
     let type_name = parse_type_name(tokens)
         .map_err(|e| ParseError::VariableParseError(line_number, e.to_string()))?;
 
-    Ok(Variable::new(token, type_name))
+    Ok(Variable::new(token.into(), type_name))
 }
 
 pub fn parse_type_name(tokens: &mut TokenReader) -> Result<TypeName, ParseError> {

@@ -1,5 +1,6 @@
 use std::convert::{TryFrom};
 use std::fmt;
+use std::sync::Arc;
 
 use crate::{create_token_reader, parse_variable};
 use crate::parse_result::ParseError;
@@ -57,7 +58,7 @@ impl TryFrom<&str> for Value {
     }
 }
 
-pub type VariableName = String;
+pub type VariableName = Arc<String>;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Variable {
@@ -171,7 +172,7 @@ mod tests {
     #[test]
     fn test_variable_0() {
         let var = Variable::try_from("x:i32").unwrap();
-        assert_eq!(var.name, "x");
+        assert_eq!(var.name, "x".to_owned().into());
 
         let expected_type = "i32".try_into().unwrap();
         assert_eq!(var.type_name, expected_type);
@@ -180,7 +181,7 @@ mod tests {
     #[test]
     fn test_variable_1() {
         let var = Variable::try_from("my_var:i32*").unwrap();
-        assert_eq!(var.name, "my_var");
+        assert_eq!(var.name, "my_var".to_owned().into());
 
         let expected_type = "i32*".try_into().unwrap();
         assert_eq!(var.type_name, expected_type);
@@ -189,7 +190,7 @@ mod tests {
     #[test]
     fn test_variable_empty_function_ptr() {
         let var = Variable::try_from("f:int[]*").unwrap();
-        assert_eq!(var.name, "f");
+        assert_eq!(var.name, "f".to_owned().into());
 
         let expected_type = TypeName {
             indirection_level: 1,
@@ -207,7 +208,7 @@ mod tests {
     #[test]
     fn test_variable_nested_function_ptr() {
         let var = Variable::try_from("@f:int[]*").unwrap();
-        assert_eq!(var.name, "@f");
+        assert_eq!(var.name, "@f".to_owned().into());
 
         let expected_type = TypeName {
             indirection_level: 1,
