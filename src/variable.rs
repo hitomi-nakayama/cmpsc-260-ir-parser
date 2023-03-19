@@ -1,5 +1,6 @@
 use std::convert::{TryFrom};
 use std::fmt;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::{create_token_reader, parse_variable};
@@ -43,10 +44,10 @@ impl From<i32> for Value {
     }
 }
 
-impl TryFrom<&str> for Value {
-    type Error = ParseError;
+impl FromStr for Value {
+    type Err = ParseError;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
         let mut tokens = create_token_reader(value.as_bytes());
         let variable = parse_value(&mut tokens)?;
 
@@ -55,6 +56,14 @@ impl TryFrom<&str> for Value {
         } else {
             Ok(variable)
         }
+    }
+}
+
+impl TryFrom<&str> for Value {
+    type Error = ParseError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        <Self as FromStr>::from_str(value)
     }
 }
 
@@ -78,10 +87,10 @@ impl fmt::Display for Variable {
     }
 }
 
-impl TryFrom<&str> for Variable {
-    type Error = ParseError;
+impl FromStr for Variable {
+    type Err = ParseError;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
         let mut tokens = create_token_reader(value.as_bytes());
         let variable = parse_variable(&mut tokens)?;
 
@@ -90,6 +99,14 @@ impl TryFrom<&str> for Variable {
         } else {
             Ok(variable)
         }
+    }
+}
+
+impl TryFrom<&str> for Variable {
+    type Error = ParseError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        <Self as FromStr>::from_str(value)
     }
 }
 
@@ -117,9 +134,10 @@ impl TypeName {
     }
 }
 
-impl TryFrom<&str> for TypeName {
-    type Error = ParseError;
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
+impl FromStr for TypeName {
+    type Err = ParseError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
         let mut tokens = create_token_reader(value.as_bytes());
         let type_name = parse_type_name(&mut tokens)?;
 
@@ -128,6 +146,13 @@ impl TryFrom<&str> for TypeName {
         } else {
             Ok(type_name)
         }
+    }
+}
+
+impl TryFrom<&str> for TypeName {
+    type Error = ParseError;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        <Self as FromStr>::from_str(value)
     }
 }
 
