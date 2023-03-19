@@ -240,7 +240,7 @@ impl BasicBlockId {
         }
     }
 
-    pub fn from_str(s: &str, sep: char) -> Result<BasicBlockId, BasicBlockIdConversionError> {
+    pub fn parse_sep(s: &str, sep: char) -> Result<BasicBlockId, BasicBlockIdConversionError> {
         let parts: Vec<&str> = s.split(sep).collect();
         if parts.len() != 2 {
             return Err(BasicBlockIdConversionError);
@@ -260,11 +260,20 @@ impl fmt::Display for BasicBlockId {
     }
 }
 
+
+impl FromStr for BasicBlockId {
+    type Err = BasicBlockIdConversionError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse_sep(s, '.')
+    }
+}
+
 impl TryFrom<&str> for BasicBlockId {
     type Error = BasicBlockIdConversionError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::from_str(value, '.')
+        Self::from_str(value)
     }
 }
 
@@ -293,11 +302,11 @@ impl InstructionId {
         }
     }
 
-    pub fn from_str(s: &str, sep: char) -> Result<InstructionId, InstructionIdConversionError> {
+    pub fn parse_sep(s: &str, sep: char) -> Result<InstructionId, InstructionIdConversionError> {
         let (bb, index) = s.rsplit_once(sep)
             .ok_or(InstructionIdConversionError)?;
 
-        let bb = BasicBlockId::from_str(bb, sep)
+        let bb = BasicBlockId::parse_sep(bb, sep)
             .map_err(|_| InstructionIdConversionError)?;
 
         let index = index.parse::<usize>()
@@ -316,11 +325,19 @@ impl fmt::Display for InstructionId {
     }
 }
 
+impl FromStr for InstructionId {
+    type Err = InstructionIdConversionError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse_sep(s, '.')
+    }
+}
+
 impl TryFrom<&str> for InstructionId {
     type Error = InstructionIdConversionError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::from_str(value, '.')
+        Self::from_str(value)
     }
 }
 
