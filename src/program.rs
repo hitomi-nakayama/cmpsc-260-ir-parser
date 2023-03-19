@@ -1,5 +1,6 @@
 use std::fmt;
 use std::collections::HashMap;
+use std::ops::Range;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -274,6 +275,33 @@ impl TryFrom<&str> for BasicBlockId {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         Self::from_str(value)
+    }
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct InstructionRange {
+    instructions: Range<usize>,
+    basic_block: BasicBlockId
+}
+
+impl InstructionRange {
+    pub fn new(basic_block: BasicBlockId, instructions: Range<usize>) -> InstructionRange {
+        InstructionRange {
+            instructions,
+            basic_block
+        }
+    }
+}
+
+impl From<InstructionId> for InstructionRange {
+    fn from(id: InstructionId) -> Self {
+        Self::new(id.basic_block, id.index..id.index + 1)
+    }
+}
+
+impl From<&InstructionId> for InstructionRange {
+    fn from(id: &InstructionId) -> Self {
+        id.clone().into()
     }
 }
 
