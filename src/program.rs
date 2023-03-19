@@ -47,6 +47,14 @@ impl FromStr for Program {
     }
 }
 
+impl TryFrom<&str> for Program {
+    type Error = ParseError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        <Self as FromStr>::from_str(value)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Struct {
     pub name: StructName,
@@ -119,6 +127,14 @@ impl FromStr for Function {
         } else {
             Err(ParseError::Generic(s!("Expected end of input.")))
         }
+    }
+}
+
+impl TryFrom<&str> for Function {
+    type Error = ParseError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        <Self as FromStr>::from_str(value)
     }
 }
 
