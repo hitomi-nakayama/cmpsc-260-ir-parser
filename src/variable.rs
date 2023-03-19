@@ -143,7 +143,7 @@ impl fmt::Display for TypeName {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum BaseType {
-    VariableType(String),
+    VariableType(Arc<String>),
     FunctionPointer(Box<TypeName>, Vec<TypeName>)
 }
 
@@ -197,7 +197,7 @@ mod tests {
             base_type: BaseType::FunctionPointer(
                 TypeName {
                     indirection_level: 0,
-                    base_type: BaseType::VariableType("int".into())
+                    base_type: BaseType::VariableType(s!("int").into())
                 }.into(),
                 vec![]
             )
@@ -215,7 +215,7 @@ mod tests {
             base_type: BaseType::FunctionPointer(
                 TypeName {
                     indirection_level: 0,
-                    base_type: BaseType::VariableType("int".into())
+                    base_type: BaseType::VariableType(s!("int").into())
                 }.into(),
                 vec![]
             )
@@ -227,21 +227,21 @@ mod tests {
     fn test_type_name_0() {
         let type_name: TypeName = "i32".try_into().unwrap();
         assert_eq!(type_name.indirection_level, 0);
-        assert_eq!(type_name.base_type, BaseType::VariableType("i32".into()));
+        assert_eq!(type_name.base_type, BaseType::VariableType(s!("i32").into()));
     }
 
     #[test]
     fn test_type_name_1() {
         let type_name: TypeName = "i32*".try_into().unwrap();
         assert_eq!(type_name.indirection_level, 1);
-        assert_eq!(type_name.base_type, BaseType::VariableType("i32".into()));
+        assert_eq!(type_name.base_type, BaseType::VariableType(s!("i32").into()));
     }
 
     #[test]
     fn test_type_name_2() {
         let type_name: TypeName = "i32**".try_into().unwrap();
         assert_eq!(type_name.indirection_level, 2);
-        assert_eq!(type_name.base_type, BaseType::VariableType("i32".into()));
+        assert_eq!(type_name.base_type, BaseType::VariableType(s!("i32").into()));
     }
 
     #[test]

@@ -325,11 +325,11 @@ pub fn parse_type_name(tokens: &mut TokenReader) -> Result<TypeName, ParseError>
 
         let return_type = Box::new(TypeName{
             indirection_level: 0,
-            base_type: BaseType::VariableType(base_type)
+            base_type: BaseType::VariableType(base_type.into())
         });
         BaseType::FunctionPointer(return_type, args)
     } else {
-        BaseType::VariableType(base_type)
+        BaseType::VariableType(base_type.into())
     };
 
     let mut indirection: usize = 0;

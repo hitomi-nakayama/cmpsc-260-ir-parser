@@ -9,6 +9,8 @@ mod map_macro;
 mod parse_result;
 mod parser;
 mod program;
+#[macro_use]
+mod string_macro;
 mod text;
 mod variable;
 

@@ -46,8 +46,6 @@ mod tests{
 
     use crate::map;
 
-    use super::*;
-
     #[test]
     fn test_function_macro() {
         let actual = function!("main" => "int", {
