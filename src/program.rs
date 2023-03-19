@@ -32,6 +32,11 @@ impl Program {
     pub fn main(&self) -> Option<&Function> {
         self.functions.get(&Arc::new(s!("main")))
     }
+
+    pub fn get_slice(&self, range: &InstructionRange) -> Option<&[Instruction]> {
+        let function = self.functions.get(&range.basic_block.function)?;
+        function.get_slice(range)
+    }
 }
 
 impl FromStr for Program {
@@ -115,6 +120,14 @@ impl Function {
             )
         }
     }
+
+    pub fn get_slice(&self, range: &InstructionRange) -> Option<&[Instruction]> {
+        if range.basic_block.function != self.id() {
+            return None;
+        }
+        let basic_block = self.basic_blocks.get(&range.basic_block.basic_block)?;
+        basic_block.get_slice(range)
+    }
 }
 
 impl FromStr for Function {
@@ -190,10 +203,10 @@ impl BasicBlock {
     }
 
     pub fn terminal_instruction_id(&self) -> Option<InstructionId> {
-        if self.instructions.len() > 0 {
+        if !(self.instructions.is_empty()) {
             Some(InstructionId{
-                basic_block: self.id(),
-                index: self.instructions.len() - 1
+                basic_block_id: self.id(),
+                index_: self.instructions.len() - 1
             })
         } else {
             None
@@ -206,12 +219,24 @@ impl BasicBlock {
             .enumerate()
             .map(|(i, instr)| {
                 let id = InstructionId{
-                    basic_block: self.id(),
-                    index: i
+                    basic_block_id: self.id(),
+                    index_: i
                 };
                 (id, instr)
             });
         Box::new(iter)
+    }
+
+    pub fn get_slice(&self, range: &InstructionRange) -> Option<&[Instruction]> {
+        if range.basic_block.basic_block != self.name {
+            return None;
+        }
+        let start = range.instructions.start;
+        let end = range.instructions.start;
+        if start > end || end > self.instructions.len() {
+            return None;
+        }
+        Some(&self.instructions[start..end])
     }
 }
 
@@ -295,7 +320,7 @@ impl InstructionRange {
 
 impl From<InstructionId> for InstructionRange {
     fn from(id: InstructionId) -> Self {
-        Self::new(id.basic_block, id.index..id.index + 1)
+        Self::new(id.basic_block_id, id.index_..id.index_ + 1)
     }
 }
 
@@ -318,15 +343,15 @@ impl fmt::Display for InstructionIdConversionError {
  */
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct InstructionId {
-    pub basic_block: BasicBlockId,
-    pub index: usize, // index of instruction within basic block
+    basic_block_id: BasicBlockId,
+    index_: usize, // index of instruction within basic block
 }
 
 impl InstructionId {
     pub fn new(function: &Function, basic_block: &BasicBlock, index: usize) -> InstructionId {
         InstructionId {
-            basic_block: BasicBlockId::new(function, basic_block),
-            index
+            basic_block_id: BasicBlockId::new(function, basic_block),
+            index_: index
         }
     }
 
@@ -341,15 +366,27 @@ impl InstructionId {
             .map_err(|_| InstructionIdConversionError)?;
 
         Ok(InstructionId{
-            basic_block: bb,
-            index
+            basic_block_id: bb,
+            index_: index
         })
+    }
+
+    pub fn basic_block(&self) -> &BasicBlockId {
+        &self.basic_block_id
+    }
+
+    pub fn function(&self) -> &FunctionId {
+        &self.basic_block_id.function
+    }
+
+    pub fn index(&self) -> usize {
+        self.index_
     }
 }
 
 impl fmt::Display for InstructionId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}.{}", self.basic_block, self.index)
+        write!(f, "{}.{}", self.basic_block_id, self.index_)
     }
 }
 
@@ -451,7 +488,7 @@ mod tests {
             ],
             return_type: "int".try_into().unwrap(),
             basic_blocks: map![
-                s!("enty").into() => BasicBlock {
+                s!("entry").into() => BasicBlock {
                     function: s!("f").into(),
                     name: s!("entry").into(),
                     instructions: vec![
@@ -506,11 +543,11 @@ mod tests {
         let actual = InstructionId::try_from("main.entry.0").unwrap();
 
         let expected = InstructionId{
-            basic_block: BasicBlockId{
+            basic_block_id: BasicBlockId{
                 function: s!("main").into(),
                 basic_block: s!("entry").into()
             },
-            index: 0
+            index_: 0
         };
         assert_eq!(expected, actual);
     }
