@@ -1,10 +1,14 @@
 use std::fmt;
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::Arc;
 
-use crate::s;
 use crate::instruction::{BasicBlockName, FieldName, FunctionName, Instruction,
     StructName};
+use crate::parse_result::ParseError;
+use crate::parser::parse;
+use crate::{s, parse_function};
+use crate::text::str_to_tokens;
 use crate::variable::{BaseType, TypeName, Variable};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -22,6 +26,24 @@ impl Program {
                 f.enumerate_instructions()
             });
         Box::new(iter)
+    }
+
+    pub fn main(&self) -> Option<&Function> {
+        self.functions.get(&Arc::new(s!("main")))
+    }
+}
+
+impl FromStr for Program {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut tokens = str_to_tokens(s);
+        let program = parse(&mut tokens)?;
+        if tokens.is_empty() {
+            Ok(program)
+        } else {
+            Err(ParseError::Generic(s!("Expected end of input.")))
+        }
     }
 }
 
@@ -82,6 +104,20 @@ impl Function {
                 Box::new(self.return_type.clone()),
                 self.params.iter().map(|p| p.type_name.clone()).collect()
             )
+        }
+    }
+}
+
+impl FromStr for Function {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut tokens = str_to_tokens(s);
+        let function = parse_function(&mut tokens)?;
+        if tokens.is_empty() {
+            Ok(function)
+        } else {
+            Err(ParseError::Generic(s!("Expected end of input.")))
         }
     }
 }
@@ -277,6 +313,29 @@ mod tests {
     use crate::{variable::BaseType, s};
 
     use super::*;
+
+    #[test]
+    fn test_program_main() {
+        let main: Function = "
+        function main() -> int {
+        entry:
+            x:int = $copy 0
+            $ret x:int
+        }
+        ".parse().unwrap();
+
+        let program = Program {
+            functions: map![
+                s!("main").into() => main.clone()
+            ],
+            structs: map![],
+
+        };
+
+        let actual = program.main().unwrap();
+
+        assert_eq!(&main, actual);
+    }
 
     #[test]
     fn jumps_to_jump() {
