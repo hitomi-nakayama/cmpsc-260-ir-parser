@@ -1,14 +1,15 @@
-pub type FieldName = String;
-pub type FunctionName = String;
-pub type BasicBlockName = String;
-pub type StructName = String;
-
 use std::fmt;
+use std::sync::Arc;
 
 use crate::create_token_reader;
 use crate::parse_result::{ParseError};
 use crate::parser::parse_instruction;
 use crate::variable::{Variable, Value};
+
+pub type FieldName = Arc<String>;
+pub type FunctionName = Arc<String>;
+pub type BasicBlockName = Arc<String>;
+pub type StructName = Arc<String>;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Instruction {

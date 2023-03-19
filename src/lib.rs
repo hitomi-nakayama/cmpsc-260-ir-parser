@@ -1,9 +1,6 @@
 mod instruction;
 
 #[macro_use]
-mod function_macro;
-
-#[macro_use]
 mod map_macro;
 
 mod parse_result;

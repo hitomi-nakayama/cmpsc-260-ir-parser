@@ -1,6 +1,8 @@
 use std::fmt;
-use std::{collections::HashMap};
+use std::collections::HashMap;
+use std::sync::Arc;
 
+use crate::s;
 use crate::instruction::{BasicBlockName, FieldName, FunctionName, Instruction,
     StructName};
 use crate::variable::{BaseType, TypeName, Variable};
@@ -25,7 +27,7 @@ impl Program {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Struct {
-    pub name: String,
+    pub name: StructName,
     pub fields: HashMap<FieldName, TypeName>
 }
 
@@ -41,8 +43,8 @@ pub struct Function {
 
 impl Function {
     pub fn entry_block(&self) -> &BasicBlock {
-        let entry = self.basic_blocks.get("entry").expect("Function does not have an entry block");
-        assert_eq!(entry.name, "entry");
+        let entry = self.basic_blocks.get(&Arc::new(s!("entry"))).expect("Function does not have an entry block");
+        assert_eq!(entry.name, s!("entry").into());
         entry
     }
 
@@ -194,8 +196,8 @@ impl BasicBlockId {
         let function = parts[0];
         let basic_block = parts[1];
         Ok(BasicBlockId{
-            function: function.to_owned(),
-            basic_block: basic_block.to_owned()
+            function: s!(function).into(),
+            basic_block: s!(basic_block).into()
         })
     }
 }
@@ -272,17 +274,17 @@ impl TryFrom<&str> for InstructionId {
 
 #[cfg(test)]
 mod tests {
-    use crate::variable::BaseType;
+    use crate::{variable::BaseType, s};
 
     use super::*;
 
     #[test]
     fn jumps_to_jump() {
         let bb = BasicBlock {
-            name: "bb0".into(),
-            function: "main".to_owned(),
+            name: s!("bb0").into(),
+            function: s!("main").into(),
             instructions: vec![
-                Instruction::Jump("bb1".into())
+                Instruction::Jump(s!("bb1").into())
             ]
         };
         let expected: Vec<BasicBlockId> = vec!["main.bb1".try_into().unwrap()];
@@ -293,10 +295,10 @@ mod tests {
     #[test]
     fn jumps_to_branch() {
         let bb = BasicBlock {
-            name: "bb0".into(),
-            function: "main".to_owned(),
+            name: s!("bb0").into(),
+            function: s!("main").into(),
             instructions: vec![
-                Instruction::Branch("x:int".try_into().unwrap(), "bb1".into(), "bb2".into())
+                Instruction::Branch("x:int".try_into().unwrap(), s!("bb1").into(), s!("bb2").into())
             ]
         };
         let expected: Vec<BasicBlockId> = vec!["main.bb1".try_into().unwrap(), "main.bb2".try_into().unwrap()];
@@ -307,8 +309,8 @@ mod tests {
     #[test]
     fn jumps_to_ret() {
         let bb = BasicBlock {
-            name: "bb0".into(),
-            function: "main".to_owned(),
+            name: s!("bb0").into(),
+            function: s!("main").into(),
             instructions: vec![
                 Instruction::Ret("x:int".try_into().unwrap())
             ]
@@ -321,11 +323,24 @@ mod tests {
 
     #[test]
     fn function_ptr_type() {
-        let func = function!("f", ("a:int*", "b:int**") => "int", {
-            "entry" => {
-                "$ret 0"
-            },
-        });
+        let func = Function {
+            name: s!("f").into(),
+            params: vec![
+                "a:int*".try_into().unwrap(),
+                "b:int**".try_into().unwrap()
+            ],
+            return_type: "int".try_into().unwrap(),
+            basic_blocks: map![
+                s!("enty").into() => BasicBlock {
+                    function: s!("f").into(),
+                    name: s!("entry").into(),
+                    instructions: vec![
+                        Instruction::Ret("0".try_into().unwrap())
+                    ]
+                }
+
+            ]
+        };
 
         let actual = func.ptr_type();
 
@@ -346,20 +361,20 @@ mod tests {
     #[test]
     fn entry_block() {
         let function = Function {
-            name: "f".to_owned(),
+            name: s!("f").into(),
             params: Vec::new(),
             return_type: "int".try_into().unwrap(),
             basic_blocks: map![
-                "entry".to_owned() => BasicBlock {
-                    name: "entry".into(),
-                    function: "main".to_owned(),
+                s!("entry").into() => BasicBlock {
+                    name: s!("entry").into(),
+                    function: s!("main").into(),
                     instructions: Vec::new()
                 }
             ]
         };
         let expected = BasicBlock{
-            name: "entry".into(),
-            function: "main".to_owned(),
+            name: s!("entry").into(),
+            function: s!("main").into(),
             instructions: Vec::new()
         };
         let actual = function.entry_block();
@@ -372,8 +387,8 @@ mod tests {
 
         let expected = InstructionId{
             basic_block: BasicBlockId{
-                function: "main".to_owned(),
-                basic_block: "entry".to_owned()
+                function: s!("main").into(),
+                basic_block: s!("entry").into()
             },
             index: 0
         };

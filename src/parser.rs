@@ -1,8 +1,10 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use tokenizer::{TokenReader};
 
 use crate::instruction::{BasicBlockName, Instruction};
+use crate::{s, FunctionName};
 use crate::variable::{BaseType, TypeName, Variable, Value};
 use crate::parse_result::{ParseError, ParseResult};
 use crate::program::{BasicBlock, Function, Program, Struct};
@@ -45,7 +47,7 @@ fn parse_struct(tokens: &mut TokenReader) -> ParseResult<Struct> {
     expect(tokens, "}")?;
 
     Ok(Struct{
-        name: struct_name,
+        name: Arc::new(struct_name),
         fields
     })
 }
@@ -62,7 +64,7 @@ pub fn parse_function(tokens: &mut TokenReader) -> ParseResult<Function> {
     })
 }
 
-fn parse_function_header(tokens: &mut TokenReader) -> ParseResult<(String, Vec<Variable>, TypeName)> {
+fn parse_function_header(tokens: &mut TokenReader) -> ParseResult<(FunctionName, Vec<Variable>, TypeName)> {
     let line_number = tokens.line_number();
 
     expect(tokens, "function")?;
@@ -74,7 +76,7 @@ fn parse_function_header(tokens: &mut TokenReader) -> ParseResult<(String, Vec<V
 
     expect(tokens, "{")?;
 
-    Ok((function_name, params, return_type))
+    Ok((Arc::new(function_name), params, return_type))
 }
 
 fn parse_basic_blocks(tokens: &mut TokenReader, function_name: &str) -> ParseResult<HashMap<BasicBlockName, BasicBlock>> {
@@ -84,7 +86,7 @@ fn parse_basic_blocks(tokens: &mut TokenReader, function_name: &str) -> ParseRes
         let label = parse_label(tokens)?;
         let mut block = BasicBlock {
             name: label,
-            function: function_name.to_owned(),
+            function: s!(function_name).into(),
             instructions: Vec::new()
         };
         while !(is_end_of_basic_block(tokens)?) {
@@ -173,8 +175,8 @@ fn parse_assign_instruction(tokens: &mut TokenReader) -> ParseResult<Instruction
             let rhs3 = if is_end_of_gep(tokens)? {
                 None
             } else {
-                Some(tokens.take()
-                    .ok_or(ParseError::Generic("Expected a field name here.".into()))?)
+                Some(Arc::new(tokens.take()
+                    .ok_or(ParseError::Generic("Expected a field name here.".into()))?))
             };
             Ok(Gep(lhs, rhs1, rhs2, rhs3))
         },
@@ -269,7 +271,7 @@ fn parse_label(tokens: &mut TokenReader) -> ParseResult<BasicBlockName> {
     let err = ParseError::Generic("Expected a label here.".to_string());
     let label = tokens.take().ok_or(err.clone())?;
     expect(tokens, ":")?;
-    Ok(label)
+    Ok(Arc::new(label))
 }
 
 pub fn parse_value(tokens: &mut TokenReader) -> ParseResult<Value> {
@@ -376,7 +378,7 @@ pub fn parse_list<T, F>(tokens: &mut TokenReader, open: &str, close: &str,
 fn parse_block_name(tokens: &mut TokenReader) -> ParseResult<BasicBlockName> {
     let line_number = tokens.line_number();
     let token = tokens.take().ok_or(ParseError::Expected(line_number, "Expected a block name here.".to_string()))?;
-    Ok(token)
+    Ok(Arc::new(token))
 }
 
 pub fn expect(tokens: &mut TokenReader, expected: &str) -> ParseResult<()> {
@@ -396,6 +398,7 @@ pub fn expect(tokens: &mut TokenReader, expected: &str) -> ParseResult<()> {
 mod tests {
     use crate::instruction::{Operation, Relation};
 
+    use crate::s;
     use crate::text::str_to_tokens;
 
     use super::*;
@@ -411,13 +414,13 @@ mod tests {
         let mut tokens = str_to_tokens(source);
 
         let expected = Function {
-            name: "main".to_owned(),
+            name: s!("main").into(),
             return_type: "int".try_into().unwrap(),
             params: vec![],
             basic_blocks: map![
-                "entry".to_owned() => BasicBlock {
-                    function: "main".to_owned(),
-                    name: "entry".to_owned(),
+                s!("entry").into() => BasicBlock {
+                    function: s!("main").into(),
+                    name: s!("entry").into(),
                     instructions: vec![
                         Instruction::AddrOf(
                             "x:int*".try_into().unwrap(),
@@ -468,7 +471,7 @@ mod tests {
         let source = "function foo(p:int) -> int {";
         let mut reader = str_to_tokens(source);
 
-        let expected_name = "foo".to_string();
+        let expected_name = Arc::new(s!("foo"));
         let expected_params = vec![Variable::try_from("p:int").unwrap()];
         let expected_return_type: TypeName = "int".try_into().unwrap();
 
@@ -485,7 +488,7 @@ mod tests {
         let source = "function main() -> int {";
         let mut reader = str_to_tokens(source);
 
-        let expected_name = "main".to_owned();
+        let expected_name = Arc::new(s!("main"));
         let expected_params: Vec<Variable> = Vec::new();
         let expected_return_type: TypeName = "int".try_into().unwrap();
 
@@ -502,7 +505,7 @@ mod tests {
         let source = "function main(x:int*)->int{";
         let mut reader = str_to_tokens(source);
 
-        let expected_name = "main".to_owned();
+        let expected_name = Arc::new(s!("main"));
         let expected_params: Vec<Variable> = vec!["x:int*".try_into().unwrap()];
         let expected_return_type: TypeName = "int".try_into().unwrap();
 
@@ -519,7 +522,7 @@ mod tests {
         let source = "function main() -> int* {";
         let mut reader = str_to_tokens(source);
 
-        let expected_name = "main".to_owned();
+        let expected_name = Arc::new(s!("main"));
         let expected_params: Vec<Variable> = vec![];
         let expected_return_type: TypeName = "int*".try_into().unwrap();
 
@@ -543,13 +546,13 @@ $ret 0 }";
         let mut reader = str_to_tokens(source);
 
         let expected = Function {
-            name: "main".to_owned(),
+            name: s!("main").into(),
             params: vec![],
             return_type: "int".try_into().unwrap(),
             basic_blocks: map![
-                "main.entry".to_owned() => BasicBlock {
-                    name: "main.entry".to_owned(),
-                    function: "main".to_owned(),
+                s!("main.entry").into() => BasicBlock {
+                    name: s!("main.entry").into(),
+                    function: s!("main").into(),
                     instructions: vec![
                         Instruction::Ret(Value::Constant(0))
                     ]
@@ -563,7 +566,7 @@ $ret 0 }";
     #[test]
     fn parse_instruction_jump() {
         let instruction = "$jump if.end";
-        let expected = Instruction::Jump("if.end".into());
+        let expected = Instruction::Jump(s!("if.end").into());
 
         let mut tokens = str_to_tokens(instruction);
 
@@ -605,8 +608,8 @@ $ret 0 }";
         let instruction = "$branch cmp1:int if.then if.end";
         let expected = Instruction::Branch(
             "cmp1:int".try_into().unwrap(),
-            "if.then".to_owned(),
-            "if.end".to_owned()
+            s!("if.then").into(),
+            s!("if.end").into()
         );
 
         let mut tokens = str_to_tokens(instruction);
@@ -621,8 +624,8 @@ $ret 0 }";
         let instruction = "$branch 0 end end";
         let expected = Instruction::Branch(
             "0".try_into().unwrap(),
-            "end".to_owned(),
-            "end".to_owned()
+            s!("end").into(),
+            s!("end").into()
         );
 
         let mut tokens = str_to_tokens(instruction);
@@ -756,7 +759,7 @@ $ret 0 }";
         let instruction = "call:TreeNode* = $call construct(1, @nullptr:TreeNode*, @nullptr:TreeNode*)";
         let expected = Instruction::Call(
             "call:TreeNode*".try_into().unwrap(),
-            "construct".to_owned(),
+            s!("construct").into(),
             vec![
                 Value::Constant(1),
                 Value::Variable("@nullptr:TreeNode*".try_into().unwrap()),
@@ -819,7 +822,7 @@ $ret 0 }";
             "a:foo*".try_into().unwrap(),
             "s.ptr:bar*".try_into().unwrap(),
             "0".try_into().unwrap(),
-            Some("a".to_owned())
+            Some(s!("a").into())
         );
 
         let mut tokens = str_to_tokens(instruction);
@@ -850,13 +853,13 @@ $ret 0 }";
     $ret 0
 }";
         let expected = map![
-            "entry".to_owned() => BasicBlock{
-                function: "main".to_owned(),
-                name: "entry".to_owned(),
+            s!("entry").into() => BasicBlock{
+                function: s!("main").into(),
+                name: s!("entry").into(),
                 instructions: vec![
                     Instruction::Call(
                         "call:int".try_into().unwrap(),
-                        "input".to_owned(),
+                        s!("input").into(),
                         vec![]
                     ),
                     Instruction::Copy(
@@ -881,9 +884,9 @@ $ret 0 }";
 $ret 0
 }";
         let expected = map![
-            "entry".to_owned() => BasicBlock{
-                name: "entry".to_owned(),
-                function: "main".to_owned(),
+            s!("entry").into() => BasicBlock{
+                name: s!("entry").into(),
+                function: s!("main").into(),
                 instructions: vec![
                     Instruction::Ret(
                         Value::Constant(0)
@@ -908,9 +911,9 @@ if.else:
     $jump if.end
 }";
         let expected = map![
-            "entry".to_owned() => BasicBlock{
-                name: "entry".to_owned(),
-                function: "main".to_owned(),
+            s!("entry").into() => BasicBlock{
+                name: s!("entry").into(),
+                function: s!("main").into(),
                 instructions: vec![
                     Instruction::Cmp(
                         "neq".try_into().unwrap(),
@@ -920,22 +923,22 @@ if.else:
                     ),
                     Instruction::Branch(
                         "tobool:int".try_into().unwrap(),
-                        "if.then".to_owned(),
-                        "if.else".to_owned()
+                        s!("if.then").into(),
+                        s!("if.else").into()
                     )
                 ]
             },
-            "if.else".to_owned() => BasicBlock{
-                name: "if.else".to_owned(),
-                function: "main".to_owned(),
+            s!("if.else").into() => BasicBlock{
+                name: s!("if.else").into(),
+                function: s!("main").into(),
                 instructions: vec![
                     Instruction::Call(
                         "call3:int".try_into().unwrap(),
-                        "input".to_owned(),
+                        s!("input").into(),
                         vec![]
                     ),
                     Instruction::Jump(
-                        "if.end".to_owned()
+                        s!("if.end").into()
                     )
                 ]
             }
@@ -953,10 +956,10 @@ if.else:
             b: int
         }");
         let expected = Struct{
-            name: "bar".to_owned(),
+            name: s!("bar").into(),
             fields: map![
-                "a".to_owned() => "int".try_into().unwrap(),
-                "b".to_owned() => "int".try_into().unwrap()
+                s!("a").into() => "int".try_into().unwrap(),
+                s!("b").into() => "int".try_into().unwrap()
             ]
         };
 
@@ -971,10 +974,10 @@ if.else:
             b:int
         }");
         let expected = Struct{
-            name: "bar".to_owned(),
+            name: s!("bar").into(),
             fields: map![
-                "a".to_owned() => "int".try_into().unwrap(),
-                "b".to_owned() => "int".try_into().unwrap()
+                s!("a").into() => "int".try_into().unwrap(),
+                s!("b").into() => "int".try_into().unwrap()
             ]
         };
 
@@ -993,22 +996,22 @@ if.else:
         }");
         let expected = Program{
             structs: map![
-                "bar".to_owned() => Struct{
-                    name: "bar".to_owned(),
+                s!("bar").into() => Struct{
+                    name: s!("bar").into(),
                     fields: map![
-                        "a".to_owned() => "int".try_into().unwrap()
+                        s!("a").into() => "int".try_into().unwrap()
                     ]
                 }
             ],
             functions: map![
-                "main".to_owned() => Function {
-                    name: "main".to_owned(),
+                s!("main").into() => Function {
+                    name: s!("main").into(),
                     return_type: "int".try_into().unwrap(),
                     params: vec![],
                     basic_blocks: map![
-                        "entry".to_owned() => BasicBlock{
-                            name: "entry".to_owned(),
-                            function: "main".to_owned(),
+                        s!("entry").into() => BasicBlock{
+                            name: s!("entry").into(),
+                            function: s!("main").into(),
                             instructions: vec![
                                 Instruction::Ret(
                                     Value::Constant(0)
