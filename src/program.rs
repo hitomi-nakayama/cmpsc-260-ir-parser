@@ -33,6 +33,11 @@ impl Program {
         self.functions.get(&Arc::new(s!("main")))
     }
 
+    pub fn get_basic_block(&self, id: &BasicBlockId) -> Option<&BasicBlock> {
+        let function = self.functions.get(&id.function)?;
+        function.get_basic_block(id)
+    }
+
     pub fn get_slice(&self, range: &InstructionRange) -> Option<&[Instruction]> {
         let function = self.functions.get(&range.basic_block.function)?;
         function.get_slice(range)
