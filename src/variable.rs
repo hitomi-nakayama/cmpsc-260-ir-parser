@@ -352,6 +352,20 @@ mod tests {
     }
 
     #[test]
+    fn test_type_name_return_ptr() {
+        let expected = TypeName{
+            indirection_level: 1,
+            base_type: BaseType::FunctionPointer(
+                Box::new("int*".try_into().unwrap()),
+                vec![]
+            )
+        };
+
+        let actual = TypeName::try_from("int*[]*").unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
     fn test_type_name_to_string() {
         // in C: int (*func_ptr)(int (*)(int*))
         let ty = TypeName{

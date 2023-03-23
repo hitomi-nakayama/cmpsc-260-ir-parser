@@ -321,29 +321,37 @@ pub fn parse_type_name(tokens: &mut TokenReader) -> Result<TypeName, ParseError>
     let base_type = tokens.take()
         .ok_or(ParseError::TypeParseError(line_number, "Expected a type name here.".to_string()))?;
 
-    let base_type = if tokens.peek() == Some("[") {
+    let indirection = take_n_matching(tokens, "*");
+
+    let (base_type, indirection) = if tokens.peek() == Some("[") {
         let args = parse_list(tokens, "[", "]", parse_type_name)
             .map_err(|e| ParseError::TypeParseError(line_number, e.to_string()))?;
 
+        let func_ptr_indirection = take_n_matching(tokens, "*");
+
         let return_type = Box::new(TypeName{
-            indirection_level: 0,
+            indirection_level: indirection as u8,
             base_type: BaseType::VariableType(base_type.into())
         });
-        BaseType::FunctionPointer(return_type, args)
+        (BaseType::FunctionPointer(return_type, args), func_ptr_indirection)
     } else {
-        BaseType::VariableType(base_type.into())
+        (BaseType::VariableType(base_type.into()), indirection)
     };
-
-    let mut indirection: usize = 0;
-    while tokens.peek() == Some("*") {
-        tokens.take();
-        indirection += 1;
-    }
 
     Ok(TypeName{
         indirection_level: indirection as u8,
         base_type
     })
+}
+
+
+fn take_n_matching(tokens: &mut TokenReader, pattern: &str) -> usize {
+    let mut count = 0;
+    while tokens.peek() == Some(pattern) {
+        tokens.take();
+        count += 1;
+    }
+    count
 }
 
 
