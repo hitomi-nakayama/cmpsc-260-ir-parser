@@ -237,7 +237,7 @@ impl BasicBlock {
             return None;
         }
         let start = range.instructions.start;
-        let end = range.instructions.start;
+        let end = range.instructions.end;
         if start > end || end > self.instructions.len() {
             return None;
         }
