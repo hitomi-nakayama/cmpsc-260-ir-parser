@@ -255,8 +255,8 @@ impl fmt::Display for BasicBlockIdConversionError {
 }
 
 pub trait BasicBlockIdInfo {
-    fn basic_block_id(&self) -> BasicBlockId;
-    fn function_id(&self) -> FunctionId;
+    fn basic_block_id(&self) -> &BasicBlockId;
+    fn function_id(&self) -> &FunctionId;
 }
 
 /**
@@ -291,11 +291,11 @@ impl BasicBlockId {
 }
 
 impl BasicBlockIdInfo for BasicBlockId {
-    fn basic_block_id(&self) -> BasicBlockId {
-        self.clone()
+    fn basic_block_id(&self) -> &BasicBlockId {
+        self
     }
-    fn function_id(&self) -> FunctionId {
-        self.function.clone()
+    fn function_id(&self) -> &FunctionId {
+        &self.function
     }
 }
 
@@ -338,10 +338,10 @@ impl InstructionRange {
 }
 
 impl BasicBlockIdInfo for InstructionRange {
-    fn basic_block_id(&self) -> BasicBlockId {
-        self.basic_block.clone()
+    fn basic_block_id(&self) -> &BasicBlockId {
+        &self.basic_block
     }
-    fn function_id(&self) -> FunctionId {
+    fn function_id(&self) -> &FunctionId {
         self.basic_block.function_id()
     }
 }
@@ -411,10 +411,10 @@ impl InstructionId {
 }
 
 impl BasicBlockIdInfo for InstructionId {
-    fn basic_block_id(&self) -> BasicBlockId {
-        self.basic_block_id.clone()
+    fn basic_block_id(&self) -> &BasicBlockId {
+        &self.basic_block_id
     }
-    fn function_id(&self) -> FunctionId {
+    fn function_id(&self) -> &FunctionId {
         self.basic_block_id.function_id()
     }
 }
