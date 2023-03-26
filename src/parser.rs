@@ -254,7 +254,7 @@ fn parse_value_list(tokens: &mut TokenReader) -> ParseResult<Vec<Value>> {
 }
 
 fn is_opcode(tokens: &mut TokenReader) -> bool {
-    tokens.peek().map_or(false, |x| x.starts_with("$"))
+    tokens.peek().map_or(false, |x| x.starts_with('$'))
 }
 
 fn is_variable(tokens: &mut TokenReader) -> bool {
@@ -269,7 +269,7 @@ fn is_label(tokens: &mut TokenReader) -> bool {
 
 fn parse_label(tokens: &mut TokenReader) -> ParseResult<BasicBlockName> {
     let err = ParseError::Generic("Expected a label here.".to_string());
-    let label = tokens.take().ok_or(err.clone())?;
+    let label = tokens.take().ok_or(err)?;
     expect(tokens, ":")?;
     Ok(Arc::new(label))
 }

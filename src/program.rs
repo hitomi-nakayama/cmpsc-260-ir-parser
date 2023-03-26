@@ -269,7 +269,14 @@ pub struct BasicBlockId {
 }
 
 impl BasicBlockId {
-    pub fn new(function: &Function, basic_block: &BasicBlock) -> BasicBlockId {
+    pub fn new(function: FunctionId, basic_block: BasicBlockName) -> BasicBlockId {
+        BasicBlockId {
+            function,
+            basic_block
+        }
+    }
+
+    pub fn from_function_basic_block(function: &Function, basic_block: &BasicBlock) -> BasicBlockId {
         BasicBlockId {
             function: function.name.clone(),
             basic_block: basic_block.name.clone()
@@ -384,7 +391,7 @@ pub struct InstructionId {
 impl InstructionId {
     pub fn new(function: &Function, basic_block: &BasicBlock, index: usize) -> InstructionId {
         InstructionId {
-            basic_block_id: BasicBlockId::new(function, basic_block),
+            basic_block_id: BasicBlockId::from_function_basic_block(function, basic_block),
             index_: index
         }
     }
@@ -461,7 +468,7 @@ mod tests {
             functions: map![
                 s!("main").into() => main.clone()
             ],
-            structs: map![],
+            structs: HashMap::new(),
 
         };
 
