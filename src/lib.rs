@@ -15,7 +15,8 @@ pub use crate::instruction::{BasicBlockName, Instruction,
     FieldName, FunctionName, Operation, Relation, StructName};
 pub use crate::parse_result::{ParseError, ParseResult};
 pub use crate::parser::{expect, parse, parse_function, parse_variable, parse_list};
-pub use crate::program::{BasicBlock, BasicBlockId, BasicBlockIdConversionError,
+pub use crate::program::{BasicBlock, BasicBlockId, BasicBlockIdInfo,
+                         BasicBlockIdConversionError,
                          Function, FunctionId,
                          InstructionId, InstructionIdConversionError,
                          InstructionRange,

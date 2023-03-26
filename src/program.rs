@@ -254,13 +254,18 @@ impl fmt::Display for BasicBlockIdConversionError {
     }
 }
 
+pub trait BasicBlockIdInfo {
+    fn basic_block_id(&self) -> BasicBlockId;
+    fn function_id(&self) -> FunctionId;
+}
+
 /**
  * A unique identifier for a basic block.
  */
 #[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct BasicBlockId {
-    pub function: FunctionId,
-    pub basic_block: BasicBlockName
+    function: FunctionId,
+    basic_block: BasicBlockName
 }
 
 impl BasicBlockId {
@@ -282,6 +287,15 @@ impl BasicBlockId {
             function: s!(function).into(),
             basic_block: s!(basic_block).into()
         })
+    }
+}
+
+impl BasicBlockIdInfo for BasicBlockId {
+    fn basic_block_id(&self) -> BasicBlockId {
+        self.clone()
+    }
+    fn function_id(&self) -> FunctionId {
+        self.function.clone()
     }
 }
 
@@ -320,6 +334,15 @@ impl InstructionRange {
             instructions,
             basic_block
         }
+    }
+}
+
+impl BasicBlockIdInfo for InstructionRange {
+    fn basic_block_id(&self) -> BasicBlockId {
+        self.basic_block.clone()
+    }
+    fn function_id(&self) -> FunctionId {
+        self.basic_block.function_id()
     }
 }
 
@@ -382,16 +405,17 @@ impl InstructionId {
         })
     }
 
-    pub fn basic_block(&self) -> &BasicBlockId {
-        &self.basic_block_id
-    }
-
-    pub fn function(&self) -> &FunctionId {
-        &self.basic_block_id.function
-    }
-
     pub fn index(&self) -> usize {
         self.index_
+    }
+}
+
+impl BasicBlockIdInfo for InstructionId {
+    fn basic_block_id(&self) -> BasicBlockId {
+        self.basic_block_id.clone()
+    }
+    fn function_id(&self) -> FunctionId {
+        self.basic_block_id.function_id()
     }
 }
 
