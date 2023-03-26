@@ -335,6 +335,12 @@ impl From<&InstructionId> for InstructionRange {
     }
 }
 
+impl fmt::Display for InstructionRange {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}.{}..{}", self.basic_block, self.instructions.start, self.instructions.end)
+    }
+}
+
 #[derive(Debug, Hash, Clone, PartialEq, Eq)]
 pub struct InstructionIdConversionError;
 
