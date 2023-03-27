@@ -69,7 +69,7 @@ impl TryFrom<&str> for Value {
 
 pub type VariableName = Arc<String>;
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Variable {
     pub name: VariableName,
     pub type_name: TypeName
@@ -110,7 +110,7 @@ impl TryFrom<&str> for Variable {
     }
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct TypeName {
     pub indirection_level: u8,  // a function pointer has indirection level 1
     pub base_type: BaseType
@@ -166,7 +166,7 @@ impl fmt::Display for TypeName {
     }
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum BaseType {
     VariableType(Arc<String>),
     FunctionPointer(Box<TypeName>, Vec<TypeName>)
