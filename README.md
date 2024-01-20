@@ -1,6 +1,6 @@
 # CMPSC 260 IR Parser (Rewrite it in Rust!)
 
-This is an onofficial parser I created as a student in UC Santa Barbara's CMPSC 260.
+This is an **onofficial** parser I created as a student in UC Santa Barbara's CMPSC 260.
 This parser was written for the IR language which was used in the Winter 2023 course.
 
 This library may still contain bugs.
